@@ -1,6 +1,6 @@
 # M3 game: mechanics that make it a game, and a UI worth looking at
 
-Status: built 2026-10-26, verified in the browser, not committed, not deployed. Branch `m3-game`. Owner wants speed over ceremony: keep `pnpm check` green and the guards in place, skip adversarial review rounds, keep tests to what protects saves and formulas. Build notes at the end.
+Status: merged 2026-10-26 in humainasger/nice-dice#4.
 
 ## Mechanics (content tables plus core)
 

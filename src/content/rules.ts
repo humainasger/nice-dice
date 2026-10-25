@@ -19,6 +19,10 @@ export const rulesSchema = z.strictObject({
     maxTicks: z.number().int().positive(),
     /** Longest absence that earns anything. GDD section 9: 8 h baseline, TODO owner. */
     capMs: z.number().int().positive(),
+    /** Absences shorter than this are not credited or shown (a quick reload is not "away"). */
+    minAwayMs: z.number().int().positive(),
+    /** A gap between frames longer than this (tab frozen, laptop asleep) goes through the offline policy. */
+    foregroundCatchupMs: z.number().int().positive(),
   }),
 })
 export type RulesDef = z.infer<typeof rulesSchema>
@@ -32,5 +36,7 @@ export const rules: RulesDef = {
     tickMs: 100,
     maxTicks: 100000,
     capMs: 28800000,
+    minAwayMs: 10000,
+    foregroundCatchupMs: 60000,
   },
 }

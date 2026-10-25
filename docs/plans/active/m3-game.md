@@ -1,0 +1,28 @@
+# M3 game: mechanics that make it a game, and a UI worth looking at
+
+Status: in progress 2026-10-25. Branch `m3-game`. Owner wants speed over ceremony: keep `pnpm check` green and the guards in place, skip adversarial review rounds, keep tests to what protects saves and formulas.
+
+## Mechanics (content tables plus core)
+
+Points per roll = (sum over owned dice of faceValue x dieMultiplier) x bestCombo x charms x luck x trophies.
+
+1. Poker-hand combos, evaluated on the face pattern (1 to 6, not upgraded values) of all owned dice, two dice or more. Best hand only. Table `combos.ts`: pair x2, two pair x3, three of a kind x4, straight x6 (all owned dice consecutive, three dice or more), full house x8, four of a kind x12, five of a kind x50. Each combo has upgrade levels: multiplier = base x (1 + 0.1 x level); upgrade cost 50 x 2.35^level. Command `upgradeCombo { id }`.
+2. Face editing (the v1 differentiator). Each die has `faces: number[6]`, starting 1 to 6. Command `upgradeFace { id }` raises the die's lowest face by 1 (ties: the first), cap 12 per face. Cost: die baseCost x 5 x 1.6^upgradesSoFar. Unlocked when the die is level 10 or more. The die card shows its six faces with the raised ones highlighted.
+3. Ascension. At level 100 a die stops levelling and can ascend: command `ascend { id }`: level back to 1, `ascensions + 1`, multiplier x 100 per ascension (so x100^ascensions on top of baseMultiplier x level). Each ascension adds 1 to draft progress. Auto-ascend setting, default on.
+4. Charms (the three-choice draft). `draftProgress` rises by 1 per ascension; when it reaches `draftRequirement = ceil(1.15^charmsTaken)` a draft opens: three distinct random charms from `charms.ts` (seeded RNG from state), the player picks one, progress drops by the requirement. Charms are permanent until luck resets them and stack multiplicatively. Table of 14 charms with id, name, flavour, rarity (common, rare, epic with weights 6/3/1), effect `{ target: 'points' | 'combo' | 'autoroll' | 'die:die_1'..'die:die_5' | 'face_cap' , op: 'mul' | 'add', value }`: points x1.25 (common), x1.5 (rare), x2 (epic); a die x3 (common) or x6 (rare); combos +25 percent (rare); auto-roll interval x0.85 (rare) or x0.7 (epic); face cap +2 (epic); draft requirement growth softened (epic). Command `pickCharm { index: 0 | 1 | 2 }`. Rerolling the offer costs nothing but is once per draft (`rerollDraft`).
+5. Luck (prestige). Unlocks when `totalEarnedRun >= 1e6`. Preview `luckOnReset = floor(sqrt(totalEarnedRun / 1e6))`. Command `prestige`: adds luckOnReset to `luck`, resets points, dice (die_1 level 1, others unowned, faces back to 1 to 6, ascensions 0), combo levels, charms, draft progress, totalEarnedRun; keeps luck, trophies, stats, settings, auto-roll unlocked. Multiplier 1 + 0.1 x luck. `prestiges` counter.
+6. Trophies (achievements). Table `trophies.ts` of 14: first roll, 100 rolls, 1,000 rolls, 10,000 rolls, each die bought (4), first ascension, first charm, first luck, five of a kind, 1e6 total, 1e9 total. Each held trophy gives x1.02 points. Checked after every state change that can complete one; a `newTrophy` field surfaces the latest for a toast.
+7. Stats: lifetime rolls, best single roll, hands seen (count per combo), time played (playMs), prestiges.
+8. Expected value for offline and the sim must include combos: enumerate all face patterns of the owned dice (6^n, n up to 5) once per relevant state change, memoised by a key of (dice owned, faces, combo levels).
+
+Save: `SAVE_VERSION` 2 with a v1 migration (add faces, ascensions, combos, charms, draft, luck, trophies, stats) and a v2 fixture. The sim bots gain the new commands (greedy: ascend when possible, pick the highest multiplier charm, prestige when luckOnReset >= 2 and at least 20 minutes since the last). Balance windows: keep die_2 at 1 to 3 min; all five dice by 45 min; first luck between 30 and 90 minutes of active play. If the new multipliers blow the windows, retune combo bases or the luck threshold and write the BALANCE_LOG entry.
+
+## Look and feel
+
+Direction: a warm, tactile table at night. Not casino, not neon. Ink background (#0f0e17 dark, #faf7f0 light), ivory dice with ink pips, one amber accent (#f2b134) for points and the primary button, a cool secondary (#7ad3ff) for charms and luck, soft shadows, 16 px radius cards, generous spacing, Geist with tabular numerals, big points number (clamp 2.5rem to 4rem). Motion: 150 to 300 ms, transforms and opacity only, respects reduce motion. Dice tumble on roll (a 3D cube turn or a 400 ms face shuffle), floating "+N" numbers from the dice, a combo callout that slams in ("Full House x8"), a burst of particles on four or five of a kind and on ascension, a count-up on the points number. Sound through jsfxr (installed, Unlicense): roll, buy, level, combo (pitch rises with hand rank), ascend, charm pick, luck; a mute switch in settings; nothing plays before the first user gesture.
+
+Layout: a tab bar on phones (Table, Combos, Charms, Luck, Trophies) and a two-column desktop layout (table left, the active side panel right). Settings stays in the header. The Table tab holds the points panel, roll controls, dice board and last roll. Every tab shows its next unlock when locked ("Charms open after your first ascension").
+
+## Done when
+
+`pnpm check` and `pnpm test:e2e` green, the game plays through its first luck in the browser, and the deploy is live.

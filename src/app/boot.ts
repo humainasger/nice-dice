@@ -12,6 +12,7 @@ import { listRecoveryCandidates, restoreFromKey, type RestoreResult } from './re
 import { loadSave, requestPersistence, saveNow, saveSync, startAutosave } from './storage'
 import { newSeed, replaceGame, setSaveStatus, setUi, store } from './store'
 import { acquireTabLock } from './tabLock'
+import { startServiceWorker } from './swUpdate'
 import { startTheme } from './theme'
 
 export type RecoveryChoice = { kind: 'fresh' } | { kind: 'restore'; key: string }
@@ -24,6 +25,7 @@ export async function boot(): Promise<void> {
   if (started) return
   started = true
   stopTheme = startTheme()
+  startServiceWorker()
   stop = stopTheme
   platform().loadingStart()
 

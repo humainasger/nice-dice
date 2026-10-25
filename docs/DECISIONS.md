@@ -116,3 +116,17 @@ Options:
 - (b) Rename now, before the repo slug, handles and any art exist. A coined word or "Nice Dice" plus a dominant second element would clear class 9/41 and could be filed in Denmark or the EU for a few hundred euros.
 
 Sources: USPTO TSDR serial 73351375; EUIPO TMview EUTM 000899419; WIPO Global Brand Database; https://store.steampowered.com/app/3952370/; https://play.google.com/store/apps/details?id=com.mindolin.nicedice; https://wizardofodds.com/games/nice-dice/; RDAP and Punktum dk whois for the domains.
+
+## D16 Synchronous localStorage mirror beside the IndexedDB save
+
+Date: 2026-10-25. Status: accepted.
+Decision: every save is written to IndexedDB and mirrored synchronously to localStorage under the same key. On unload (pagehide, visibilitychange to hidden) only the mirror is written synchronously; loadSave reads both, quarantines any unreadable copy, loads the newer one and writes it back to IndexedDB.
+Why: a browser probe during the M2 build showed Chrome aborting IndexedDB transactions issued during pagehide and visibilitychange on a navigation, while localStorage writes landed. Without the mirror, a reload right after a roll lost up to 30 s of play, which the smoke test caught.
+Would flip it: browsers guaranteeing IndexedDB writes at unload, or a move to a cloud save where the last write goes over the network anyway.
+
+## D17 Recovery dialog and silent hidden-tab credit
+
+Date: 2026-10-25. Status: accepted.
+Decision: a quarantined or future-version save stops boot and opens a blocking recovery dialog listing backup slots, set-aside copies from reset or import, and quarantined copies, each restorable; the game never starts fresh over an unreadable save. Hidden-tab wake-ups longer than rules.offline.foregroundCatchupMs are credited silently and reported once on return, measured from the game's own deltas.
+Why: the adversarial review of M2 showed the first build starting fresh and reusing the main key within 30 s of a quarantine, leaving the only copy unreachable, and Chrome's once-a-minute wake-up for long-hidden tabs producing a stream of one-minute away modals.
+Would flip it: a settings-level backup browser (planned) that makes the boot dialog a special case of a general restore screen.

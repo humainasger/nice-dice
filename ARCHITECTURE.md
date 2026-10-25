@@ -77,9 +77,18 @@ interface Platform {
   gameplayStop(): void
   loadingStart(): void
   loadingStop(): void
-  requestAd(kind: 'midgame' | 'rewarded'): Promise<'done' | 'skipped' | 'unavailable'>
+  requestAd(kind: 'midgame' | 'rewarded'): Promise<'shown' | 'skipped' | 'error'>
   happytime(): void
-  saveStore: { get(key: string): Promise<string | null>; set(key: string, value: string): Promise<void> }
+  saveStore: {
+    get(key: string): Promise<string | null>
+    set(key: string, value: string): Promise<void>
+    remove(key: string): Promise<void>
+    keys(): Promise<string[]>
+    // Optional synchronous mirror (localStorage on the web). Chrome aborts IndexedDB writes issued
+    // during pagehide and visibilitychange on a navigation, so the unload save goes here and
+    // loadSave takes the newer of the two copies (docs/DECISIONS.md D16).
+    sync?: { get(key: string): string | null; set(key: string, value: string): void; remove(key: string): void }
+  }
 }
 ```
 

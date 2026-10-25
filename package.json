@@ -11,6 +11,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "validate:content": "vitest run src/content",
     "sim": "tsx tools/sim/run.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test"

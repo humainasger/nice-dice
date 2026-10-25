@@ -1,95 +1,63 @@
-// The playable dev shell: points, roll controls, the dice board and an away banner. The full M2
-// screen (dialogs, settings, export and import, lock screen) replaces this file.
-import { useEffect } from 'react'
-import { content } from '@/content'
-import { boot } from '@/app/boot'
-import {
-  selectAutoEnabled,
-  selectAutoProgress,
-  selectAutoUnlocked,
-  selectLastGainedText,
-  selectOfflineText,
-  selectPerRollText,
-  selectPerSecondText,
-  selectPointsText,
-  selectRolls,
-} from '@/app/selectors'
-import { dismissOffline, send, useGameStore } from '@/app/store'
+// The game screen: header with the settings button, the points panel, roll controls, the dice
+// board, the last roll and the credits line, plus the settings and away dialogs. A quiet loading
+// state holds the page until boot() has loaded the save, so the first paint is the real game.
+import { useState } from 'react'
+import { SettingsIcon } from 'lucide-react'
+import { selectBooted } from '@/app/selectors'
+import { useGameStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
-import { DieCard } from './DieCard'
+import { DiceBoard } from './DiceBoard'
+import { ErrorBanner } from './ErrorBanner'
+import { LastRoll } from './LastRoll'
+import { OfflineModal } from './OfflineModal'
+import { PointsPanel } from './PointsPanel'
+import { RecoveryDialog } from './RecoveryDialog'
+import { RollControls } from './RollControls'
+import { SettingsDialog } from './SettingsDialog'
 
 export function GameScreen() {
-  const points = useGameStore(selectPointsText)
-  const perRoll = useGameStore(selectPerRollText)
-  const perSecond = useGameStore(selectPerSecondText)
-  const rolls = useGameStore(selectRolls)
-  const lastGained = useGameStore(selectLastGainedText)
-  const autoUnlocked = useGameStore(selectAutoUnlocked)
-  const autoEnabled = useGameStore(selectAutoEnabled)
-  const autoProgress = useGameStore(selectAutoProgress)
-  const offlineText = useGameStore(selectOfflineText)
-
-  useEffect(() => {
-    boot()
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.code === 'Space' && !(e.target instanceof HTMLButtonElement)) {
-        e.preventDefault()
-        send({ type: 'roll' })
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  const booted = useGameStore(selectBooted)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
-    <main className="min-h-dvh bg-background text-foreground px-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))]">
-      <header className="mx-auto flex max-w-3xl items-center justify-between py-2">
-        <h1 className="text-lg font-semibold">Nice Dice</h1>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">dev build</span>
-      </header>
-
-      {offlineText !== '' && (
-        <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between gap-3 rounded-lg border bg-card px-4 py-2 text-sm">
-          <span>{offlineText}</span>
-          <Button size="sm" variant="ghost" onClick={dismissOffline}>
-            OK
+    <div className="min-h-dvh bg-background pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] text-foreground">
+      <div className="mx-auto flex max-w-3xl flex-col gap-4">
+        <header className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold tracking-tight">Nice Dice</h1>
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            aria-label="Settings"
+            data-testid="settings-button"
+            disabled={!booted}
+            onClick={() => setSettingsOpen(true)}
+            className="size-11 touch-manipulation"
+          >
+            <SettingsIcon className="size-5" />
           </Button>
-        </div>
-      )}
+        </header>
 
-      <section className="mx-auto max-w-3xl rounded-xl border bg-card p-4 text-card-foreground">
-        <div className="text-sm text-muted-foreground">Points</div>
-        <div className="text-4xl font-semibold tabular-nums">{points}</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {perRoll} expected per roll · {perSecond}/s from auto-roll · {rolls} rolls
-          {lastGained !== '' ? ` · last roll +${lastGained}` : ''}
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button onClick={() => send({ type: 'roll' })} className="min-h-11 min-w-28 touch-manipulation select-none">
-            Roll (Space)
-          </Button>
-          {autoUnlocked ? (
-            <div className="flex items-center gap-3">
-              <Button variant={autoEnabled ? 'secondary' : 'outline'} onClick={() => send({ type: 'setAutoRoll', enabled: !autoEnabled })} className="min-h-11 touch-manipulation select-none">
-                Auto-roll {autoEnabled ? 'on' : 'off'}
-              </Button>
-              <div className="h-2 w-32 overflow-hidden rounded bg-muted" aria-hidden="true">
-                <div className="h-full bg-primary" style={{ width: `${Math.round(autoProgress * 100)}%` }} />
-              </div>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">Level your first die to unlock auto-roll</span>
-          )}
-        </div>
-      </section>
+        <ErrorBanner />
 
-      <section className="mx-auto mt-4 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {content.dice.map((die, i) => (
-          <DieCard key={die.id} id={die.id} index={i} />
-        ))}
-      </section>
+        {booted ? (
+          <main className="flex flex-col gap-4">
+            <PointsPanel />
+            <RollControls />
+            <DiceBoard />
+            <LastRoll />
+          </main>
+        ) : (
+          <main aria-busy="true" className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+            Loading your dice
+          </main>
+        )}
 
-      <p className="sr-only">Nice Dice development build. Roll dice for points, buy and level dice.</p>
-    </main>
+        <footer className="pt-4 text-center text-xs text-muted-foreground">Icons: lucide (ISC). Font: Geist (OFL).</footer>
+      </div>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <RecoveryDialog />
+      <OfflineModal />
+    </div>
   )
 }

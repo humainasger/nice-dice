@@ -138,3 +138,19 @@
 @media (prefers-reduced-motion: reduce) {
   .die-rolling { animation: none; }
 }
+/* The settings switch adds .reduce-motion on <html> (src/app/theme.ts); it matches the OS preference above. */
+.reduce-motion .die-rolling { animation: none; }
+/* Reduced motion, from the OS or the switch: every animation and transition collapses to a single frame,
+   including the shadcn dialog and select transitions from tw-animate-css. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

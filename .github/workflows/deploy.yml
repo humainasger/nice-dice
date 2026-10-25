@@ -48,6 +48,12 @@ jobs:
       - name: Typecheck, lint and test
         run: pnpm check
 
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke test
+        run: pnpm test:e2e
+
       - name: Build
         run: pnpm build
         env:

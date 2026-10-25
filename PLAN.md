@@ -1,4 +1,4 @@
-# Dice incremental: stack decision and build plan
+# Nice Dice: stack decision and build plan
 
 Status: plan, nothing built yet. Owner: Asger. Written 2026-10-25 from a nine-agent research pass with primary-source checks (versions, licences and prices as of that date).
 
@@ -154,7 +154,7 @@ Analytics: none in v1. If needed later, Umami Cloud Hobby (cookieless, 100K even
 
 ## 8. Open questions for Asger
 
-- Q1 Fantasy and working title. Needed before M0 ends, with a quick trademark and domain check. Not casino (D5).
+- Q1 Title decided 2026-10-25: Nice Dice, repo nice-dice. The fantasy behind the dice is still open and is needed before M1 names any content. Not casino (D5).
 - Q2 Phone or laptop first. Idle Dice is landscape. Recommendation: responsive with a portrait phone layout, since that is where you will playtest.
 - Q3 Monetisation intent. Hobby and free changes nothing. Portal ads later means Cloudflare hosting, PEGI 12, a privacy policy and the platform adapter from M0, all already in the plan.
 - Q4 The v1 differentiator. Recommendation: face editing. Alternatives in the parking lot.

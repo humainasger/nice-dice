@@ -8,7 +8,7 @@ Method for the first pass (PLAN.md section 5): start from Anthony Pecorella's id
 
 Purpose: name the fantasy and the working title, and record what we borrow from Idle Dice and what we change, so every later section has a reference point.
 
-TODO owner: fantasy and working title (Q1 in section 14). Not casino (D5). Quick trademark and domain check before M0 ends. Candidates from PLAN.md: workshop, tavern, alchemy, expedition.
+Title: Nice Dice, decided 2026-10-25, repo nice-dice. TODO owner: the fantasy behind the dice (Q1 in section 14). Not casino (D5). Candidates from PLAN.md: workshop, tavern, alchemy, expedition.
 
 ### Idle Dice baseline (PLAN.md section 3, verified from the live bundle and wiki)
 
@@ -189,7 +189,7 @@ From D5, D6 and the parking lot in PLAN.md section 3.
 
 From PLAN.md section 8. TODO owner on all four.
 
-- Q1 Fantasy and working title. Needed before M0 ends, with a quick trademark and domain check. Not casino (D5).
+- Q1 Title decided 2026-10-25: Nice Dice, repo nice-dice. The fantasy behind the dice is still open and is needed before M1 names any content. Not casino (D5).
 - Q2 Phone or laptop first. Idle Dice is landscape. Recommendation: responsive with a portrait phone layout, since that is where you will playtest.
 - Q3 Monetisation intent. Hobby and free changes nothing. Portal ads later means Cloudflare hosting, PEGI 12, a privacy policy and the platform adapter from M0, all already in the plan.
 - Q4 The v1 differentiator. Recommendation: face editing. Alternatives in the parking lot.

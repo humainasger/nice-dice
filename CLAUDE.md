@@ -1,6 +1,6 @@
-# Dice incremental
+# Nice Dice
 
-A browser dice incremental in the spirit of Idle Dice: roll dice for points, level and ascend dice, poker-hand combos, a three-choice draft on a progress bar, one prestige layer, and die-face editing as the v1 differentiator. Not casino themed. Built mostly by Claude Code around a pure TypeScript simulation core, a React shell and GitHub Pages hosting. PLAN.md is the plan of record. docs/GDD.md is the design of record and is owner-edited: Asger decides the numbers and targets there, agents propose and implement.
+Nice Dice is a browser dice incremental in the spirit of Idle Dice: roll dice for points, level and ascend dice, poker-hand combos, a three-choice draft on a progress bar, one prestige layer, and die-face editing as the v1 differentiator. Not casino themed. Built mostly by Claude Code around a pure TypeScript simulation core, a React shell and GitHub Pages hosting. PLAN.md is the plan of record. docs/GDD.md is the design of record and is owner-edited: Asger decides the numbers and targets there, agents propose and implement.
 
 ## Commands
 

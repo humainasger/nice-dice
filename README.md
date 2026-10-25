@@ -1,6 +1,6 @@
-# Dice Incremental (working title)
+# Nice Dice
 
-A browser dice incremental in the spirit of Idle Dice: roll, level and ascend dice, chase poker-hand combos, edit die faces. Built mostly by Claude Code, see `PLAN.md` for the reasoning.
+Nice Dice is a browser dice incremental in the spirit of Idle Dice: roll, level and ascend dice, chase poker-hand combos, edit die faces. Built mostly by Claude Code, see `PLAN.md` for the reasoning.
 
 Stack: TypeScript 7 strict, Vite 8, React 19, Zustand 5, Tailwind 4, shadcn/ui, break_infinity.js, Vitest, pnpm. Deployed to GitHub Pages as a PWA.
 

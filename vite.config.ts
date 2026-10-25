@@ -17,9 +17,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Dice Incremental (working title)',
-        short_name: 'Dice',
-        description: 'A dice incremental game.',
+        name: 'Nice Dice',
+        short_name: 'Nice Dice',
+        description: 'Nice Dice, a browser dice incremental.',
         start_url: base,
         scope: base,
         display: 'standalone',

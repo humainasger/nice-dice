@@ -21,7 +21,7 @@ export default function App() {
   return (
     <main className="flex min-h-dvh flex-col bg-background text-foreground pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
       <header className="flex items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-lg font-semibold">Dice Incremental</h1>
+        <h1 className="text-lg font-semibold">Nice Dice</h1>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">M0 scaffold</span>
       </header>
       <p className="sr-only">This is the M0 scaffold. The game is not playable yet.</p>

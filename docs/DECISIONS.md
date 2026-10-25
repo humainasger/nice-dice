@@ -99,3 +99,20 @@ Date: 2026-10-25. Status: accepted.
 Decision: Num results are normalised in the wrapper because break_infinity's add can return a mantissa just below 1, which broke exact save round trips. Every helper in `src/core/num.ts` that returns a Decimal passes it through one normalise step before handing it back, so `N.serialize` always writes a mantissa in `[1, 10)`.
 Why: `N.serialize` writes `<mantissa>e<exponent>` and `N.parse` reads it strictly. A result such as `0.9999999999999999e4` serialises and parses to a Decimal that is not `eq` to the original, so the property test for exact round trips failed on values produced by `add`. Normalising once in the wrapper keeps the fix in the one file that imports `break_infinity.js` (D3).
 Would flip it: a break_infinity.js release that normalises its own results, which would make the step redundant but harmless.
+
+## D15 Name check for "Nice Dice" (2026-10-25), decision pending
+
+Status: open. The public repo and first deploy wait on this.
+
+Facts, checked 2026-10-25:
+
+- NICE DICE is a live registered word mark owned by James H. Koplow d/b/a Koplow Games, a US dice manufacturer: USPTO Reg. 1219277 (class 28, "Dice", filed 1982, third renewal 2023-06-08) and EUTM 000899419 (class 28, "Games", registered 2000, runs to 2028-07-29, covers Denmark). No NICE DICE mark exists in classes 9 or 41, at WIPO, or as a Danish national mark. A browser game sits in classes 9 and 41, so there is no direct class clash, but "Games" in class 28 against a dice game is a similarity an EU opponent can argue. We could not register the name ourselves, and merchandise or physical dice under it would be a direct clash.
+- Name collisions in games: "Nice Dice: Game of Throws" (Steam, Fishtank Games, paid, planned 2027), "Nice Dice 3D" (Google Play, 100K+ installs, rating 2.6, and App Store), "Nice Dice Roller 3D" (top App Store result), six Google Play apps and about ten itch.io jam games with the name, a live real-money casino game "Nice Dice" by Roxor Gaming, YouTube @NiceDice (Russian board-game channel, 23K subscribers). No "Nice Dice" on CrazyGames, Poki or Kongregate, and no incremental or idle game uses it.
+- Handles and domains: GitHub users nicedice and nice-dice taken, nicedice.itch.io taken, nicedice.com (dormant since 2001), nicedice.io (for sale, USD 999) and nicedice.app (parked) taken. Free: repo humainasger/nice-dice, CrazyGames slug nice-dice, nice-dice.com, playnicedice.com, nicedice.game, nicedice.games, nicedice.dk, nice-dice.dk.
+
+Options:
+
+- (a) Keep "Nice Dice" as a working title that can be used but never owned: do not file it, sell nothing physical under it, always pair it with a qualifier in listings (the bare phrase will not rank), and get a one-hour opinion from a Danish trademark attorney before any ad-supported distribution.
+- (b) Rename now, before the repo slug, handles and any art exist. A coined word or "Nice Dice" plus a dominant second element would clear class 9/41 and could be filed in Denmark or the EU for a few hundred euros.
+
+Sources: USPTO TSDR serial 73351375; EUIPO TMview EUTM 000899419; WIPO Global Brand Database; https://store.steampowered.com/app/3952370/; https://play.google.com/store/apps/details?id=com.mindolin.nicedice; https://wizardofodds.com/games/nice-dice/; RDAP and Punktum dk whois for the domains.

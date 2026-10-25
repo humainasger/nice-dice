@@ -1,0 +1,73 @@
+# Deploys the Vite build to GitHub Pages. Adapted from https://vite.dev/guide/static-deploy for pnpm.
+#
+# One-time setup once the GitHub repo exists: Settings > Pages > Build and deployment > Source
+# must be "GitHub Actions", otherwise the deploy job fails with a "Pages not enabled" error.
+#
+# VITE_BASE is /<repo>/ because project sites live at https://<owner>.github.io/<repo>/.
+# With a custom domain later, set VITE_BASE to "/" (or drop it, "/" is the default in vite.config.ts).
+#
+# Action versions: each action is pinned to its current major as of 2026-10-25, taken from
+# gh api repos/<owner>/<repo>/releases/latest. GitHub removed the Node 20 runtime from hosted
+# runners on 2026-09-23, so the majors in the Vite guide (checkout@v4, setup-node@v4,
+# configure-pages@v5, upload-pages-artifact@v3, deploy-pages@v4) no longer run. docs/DECISIONS.md D13.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm (version comes from the packageManager field)
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, lint and test
+        run: pnpm check
+
+      - name: Build
+        run: pnpm build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

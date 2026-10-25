@@ -1,6 +1,6 @@
 # M1 core: headless game, save, sim CLI, balance tests
 
-Status: built, awaiting review and merge (2026-10-25). Branch `m1-core`. Owner delegated balance tuning for the first playable demo to the agent; every content change goes in `docs/BALANCE_LOG.md` for review. See Build notes at the end for what differs from the spec below.
+Status: merged 2026-10-25 in humainasger/nice-dice#1.
 
 Goal: the whole game loop runs headless in `src/core` with a seeded RNG, saves round-trip exactly, and `pnpm sim` reports time-to-milestone so the demo's pacing is measured before any UI exists. Scope is the first playable demo: roll dice for points, own up to five dice, level dice, auto-roll, offline progress. Combos, ascension, the draft and prestige come later (M4, M5).
 

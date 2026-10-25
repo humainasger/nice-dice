@@ -19,4 +19,4 @@ paths:
 
 ## Baseline
 
-The first dice table follows the Idle Dice baseline from PLAN.md section 3 and GDD section 4: five dice, base costs 10, 100, 1000, 10000, 100000, cost growth 1.08 per level, output multipliers 1, 2, 4, 8, 16. Diverge from there through the GDD, not in code.
+The first dice table follows the Idle Dice baseline from PLAN.md section 3 and GDD section 4: five dice, base costs 10, 100, 1000, 10000, 35000 (die_5 tuned 2026-10-25, see docs/BALANCE_LOG.md), cost growth 1.08 per level, output multipliers 1, 2, 4, 8, 16. Diverge from there through the GDD, not in code.

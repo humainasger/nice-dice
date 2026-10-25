@@ -73,6 +73,8 @@ export interface UiState {
   readonly recovery: RecoveryState | null
   readonly settings: Settings
   readonly save: SaveStatus
+  /** A new build is installed and waiting; the update banner offers the reload. */
+  readonly updateReady: boolean
 }
 
 export interface StoreState {
@@ -130,6 +132,7 @@ export const store = createStore<StoreState>(() => ({
   game: createInitialState(newSeed()),
   ui: {
     booted: false,
+    updateReady: false,
     locked: false,
     offline: null,
     recovery: null,

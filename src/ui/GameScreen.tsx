@@ -8,6 +8,7 @@ import { useGameStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { DiceBoard } from './DiceBoard'
 import { ErrorBanner } from './ErrorBanner'
+import { UpdateBanner } from './UpdateBanner'
 import { LastRoll } from './LastRoll'
 import { OfflineModal } from './OfflineModal'
 import { PointsPanel } from './PointsPanel'
@@ -37,6 +38,7 @@ export function GameScreen() {
           </Button>
         </header>
 
+        <UpdateBanner />
         <ErrorBanner />
 
         {booted ? (

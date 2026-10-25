@@ -188,3 +188,5 @@ export function selectDieLevel(id: Id): (s: StoreState) => number {
 export function selectDieCostText(id: Id): (s: StoreState) => string {
   return (s) => N.format(dieView(s.game, id).nextCost)
 }
+
+export const selectUpdateReady = (s: StoreState): boolean => s.ui.updateReady

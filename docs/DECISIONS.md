@@ -78,6 +78,7 @@ Date: 2026-10-25. Status: accepted.
 Decision: vite-plugin-pwa with `registerType: 'prompt'`. The update prompt UI is deferred to M2; until then registration is auto-injected and a new service worker waits.
 Why: `autoUpdate` would reload the page under the player and could lose unsaved progress. The prompt UI needs the save layer to save before reload, which lands in M2.
 Would flip it: nothing; the prompt UI is a scheduled task, not a question.
+Update 2026-10-25: implemented. src/app/swUpdate.ts registers through virtual:pwa-register (workbox-window added as the dev dependency the plugin requires for it), checks for a new build hourly, and src/ui/UpdateBanner.tsx offers "Save and reload", which saves synchronously before the waiting worker takes over.
 
 ## D12 GitHub Pages base path
 

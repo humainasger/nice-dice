@@ -49,10 +49,12 @@ export const dice: readonly DieDef[] = [
     id: 'die_5',
     name: 'Fifth Die',
     sides: 6,
-    baseCost: 100000,
+    // Idle Dice baseline 100000. Tuned 2026-10-25 so the active bot owns all five dice inside the
+    // 45 minute window (docs/BALANCE_LOG.md); GDD section 4 row die_5 carries the value.
+    baseCost: 35000,
     costGrowth: 1.08,
     baseMultiplier: 16,
     unlock: { kind: 'owned', id: 'die_4', count: 1 },
-    notes: NOTES,
+    notes: 'baseline from PLAN.md section 3 with baseCost tuned 2026-10-25, see docs/BALANCE_LOG.md; tune via GDD section 4',
   },
 ]

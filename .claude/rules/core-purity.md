@@ -5,7 +5,7 @@ paths:
 
 # src/core is pure
 
-`src/core` is the simulation: state types, `dispatch(state, command)`, `advance(state, dtMs, rng)`, formulas, save and migrations. It runs identically in Vitest, the sim CLI and the browser. Tests in `tests/arch` enforce every rule below on non-test files; test files (`*.test.ts`) are exempt.
+`src/core` is the simulation: state types, `dispatch(state, command)`, `advance(state, dtMs)`, formulas, save and migrations. It runs identically in Vitest, the sim CLI and the browser. Tests in `tests/arch` enforce every rule below on non-test files; test files (`*.test.ts`) are exempt.
 
 ## Imports
 

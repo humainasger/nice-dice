@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "seed": 1,
+  "rng": [
+    -307829055,
+    -818590654,
+    -547206482,
+    1625623053
+  ],
+  "points": "4.993888e1",
+  "totalEarned": "8.5e1",
+  "rolls": 14,
+  "playMs": 8500,
+  "dice": [
+    {
+      "id": "die_1",
+      "owned": true,
+      "level": 4
+    },
+    {
+      "id": "die_2",
+      "owned": false,
+      "level": 0
+    },
+    {
+      "id": "die_3",
+      "owned": false,
+      "level": 0
+    },
+    {
+      "id": "die_4",
+      "owned": false,
+      "level": 0
+    },
+    {
+      "id": "die_5",
+      "owned": false,
+      "level": 0
+    }
+  ],
+  "autoRoll": {
+    "unlocked": true,
+    "enabled": true,
+    "intervalMs": 5000,
+    "elapsedMs": 3500
+  },
+  "lastRoll": {
+    "faces": [
+      6
+    ],
+    "gained": "2.4e1",
+    "at": 6000
+  }
+}

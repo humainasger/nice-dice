@@ -128,3 +128,13 @@
     @apply font-sans;
     }
 }
+/* Dice roll nudge, transform only; skipped under reduced motion. */
+@keyframes die-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(12deg) scale(1.06); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.die-rolling { animation: die-roll 300ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .die-rolling { animation: none; }
+}

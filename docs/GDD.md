@@ -75,7 +75,7 @@ Purpose: one row per die with base cost, cost growth, output and unlock. These r
 | `die_2` | Second Die | 100 | 1.08 | 2 | `owned` `die_1`, count 1 |
 | `die_3` | Third Die | 1000 | 1.08 | 4 | `owned` `die_2`, count 1 |
 | `die_4` | Fourth Die | 10000 | 1.08 | 8 | `owned` `die_3`, count 1 |
-| `die_5` | Fifth Die | 100000 | 1.08 | 16 | `owned` `die_4`, count 1 |
+| `die_5` | Fifth Die | 35000 | 1.08 | 16 | `owned` `die_4`, count 1 |
 
 Ids and values match `src/content/dice.ts` as of 2026-10-25. All five dice have `sides: 6`. `src/content/content.test.ts` pins these baseline values, so a change here changes that test in the same pull request.
 

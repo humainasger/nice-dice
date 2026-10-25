@@ -1,0 +1,1195 @@
+{
+  "command": "pnpm sim --strategy active,idle --seeds 1,2,3 --hours 0.25,1,8",
+  "tickMs": 100,
+  "actEveryMs": 1000,
+  "content": {
+    "dice": [
+      {
+        "id": "die_1",
+        "baseCost": 10,
+        "costGrowth": 1.08,
+        "baseMultiplier": 1,
+        "unlock": "always"
+      },
+      {
+        "id": "die_2",
+        "baseCost": 100,
+        "costGrowth": 1.08,
+        "baseMultiplier": 2,
+        "unlock": "die_1 at level 1"
+      },
+      {
+        "id": "die_3",
+        "baseCost": 1000,
+        "costGrowth": 1.08,
+        "baseMultiplier": 4,
+        "unlock": "die_2 at level 1"
+      },
+      {
+        "id": "die_4",
+        "baseCost": 10000,
+        "costGrowth": 1.08,
+        "baseMultiplier": 8,
+        "unlock": "die_3 at level 1"
+      },
+      {
+        "id": "die_5",
+        "baseCost": 35000,
+        "costGrowth": 1.08,
+        "baseMultiplier": 16,
+        "unlock": "die_4 at level 1"
+      }
+    ],
+    "rules": {
+      "autoRoll": {
+        "baseIntervalMs": 5000,
+        "unlock": {
+          "kind": "owned",
+          "id": "die_1",
+          "count": 2
+        }
+      },
+      "offline": {
+        "tickMs": 100,
+        "maxTicks": 100000,
+        "capMs": 28800000
+      }
+    }
+  },
+  "runs": [
+    {
+      "strategy": "active",
+      "seed": 1,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": 4000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 59
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 74000,
+          "boughtMs": 74000,
+          "level": 39
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 294000,
+          "boughtMs": 294000,
+          "level": 18
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 94000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "7.1906660333466e2",
+        "totalEarned": "7.3648e4",
+        "rolls": 184,
+        "incomePerSecond": "1.463e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 1,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": 4000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 76
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 74000,
+          "boughtMs": 74000,
+          "level": 55
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 294000,
+          "boughtMs": 294000,
+          "level": 34
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1114000,
+          "boughtMs": 1114000,
+          "level": 13
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2164000,
+          "boughtMs": 2164000,
+          "level": 6
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 94000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "1.08099161826372e4",
+        "totalEarned": "7.69267e5",
+        "rolls": 724,
+        "incomePerSecond": "3.654e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 1,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 4000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 113
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 74000,
+          "boughtMs": 74000,
+          "level": 92
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 294000,
+          "boughtMs": 294000,
+          "level": 71
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1114000,
+          "boughtMs": 1114000,
+          "level": 50
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2164000,
+          "boughtMs": 2164000,
+          "level": 43
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 94000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 4194000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "3.74834207524056e5",
+        "totalEarned": "2.2818636e7",
+        "rolls": 5764,
+        "incomePerSecond": "1.1683e3"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": 2000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 59
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 87000,
+          "level": 38
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 317000,
+          "boughtMs": 317000,
+          "level": 17
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 112000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "3.14261222130424e3",
+        "totalEarned": "7.0509e4",
+        "rolls": 182,
+        "incomePerSecond": "1.421e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": 2000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 76
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 87000,
+          "level": 55
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 317000,
+          "boughtMs": 317000,
+          "level": 34
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1137000,
+          "boughtMs": 1137000,
+          "level": 13
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2217000,
+          "boughtMs": 2217000,
+          "level": 6
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 112000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "4.5609161826372e3",
+        "totalEarned": "7.63018e5",
+        "rolls": 722,
+        "incomePerSecond": "3.654e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 2000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 113
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 87000,
+          "level": 92
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 317000,
+          "boughtMs": 317000,
+          "level": 71
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1137000,
+          "boughtMs": 1137000,
+          "level": 51
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2217000,
+          "boughtMs": 2217000,
+          "level": 43
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 112000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 4207000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "3.7211082391744e4",
+        "totalEarned": "2.2950029e7",
+        "rolls": 5762,
+        "incomePerSecond": "1.1739000000000002e3"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 3,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": 3000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 60
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 88000,
+          "boughtMs": 93000,
+          "level": 39
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 318000,
+          "boughtMs": 318000,
+          "level": 18
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 113000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "9.150119900857e1",
+        "totalEarned": "7.3958e4",
+        "rolls": 183,
+        "incomePerSecond": "1.47e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 3,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": 3000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 76
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 88000,
+          "boughtMs": 93000,
+          "level": 55
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 318000,
+          "boughtMs": 318000,
+          "level": 34
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1113000,
+          "boughtMs": 1113000,
+          "level": 13
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2168000,
+          "boughtMs": 2168000,
+          "level": 6
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 113000
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "6.0609161826372e3",
+        "totalEarned": "7.64518e5",
+        "rolls": 723,
+        "incomePerSecond": "3.654e2"
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 3,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 3000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 113
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 88000,
+          "boughtMs": 93000,
+          "level": 92
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 318000,
+          "boughtMs": 318000,
+          "level": 71
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 1113000,
+          "boughtMs": 1113000,
+          "level": 51
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 2168000,
+          "boughtMs": 2168000,
+          "level": 43
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 113000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 4198000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "1.42553082391745e5",
+        "totalEarned": "2.3055371e7",
+        "rolls": 5763,
+        "incomePerSecond": "1.1739000000000002e3"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 1,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 1,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 1,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 2,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 2,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 2,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 3,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 3,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    },
+    {
+      "strategy": "idle",
+      "seed": 3,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": null,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": null,
+          "boughtMs": null,
+          "level": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000,
+          "ms": null
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [
+        "die_2",
+        "die_3",
+        "die_4",
+        "die_5"
+      ],
+      "end": {
+        "points": "0e0",
+        "totalEarned": "0e0",
+        "rolls": 0,
+        "incomePerSecond": "0e0"
+      }
+    }
+  ]
+}

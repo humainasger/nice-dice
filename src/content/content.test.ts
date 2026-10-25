@@ -22,8 +22,8 @@ describe('content tables', () => {
     expect(JSON.parse(JSON.stringify(content))).toEqual(content)
   })
 
-  it('dice follow the PLAN.md section 3 baseline', () => {
-    expect(dice.map((d) => d.baseCost)).toEqual([10, 100, 1000, 10000, 100000])
+  it('dice match the GDD section 4 table (Idle Dice baseline, die_5 baseCost tuned 2026-10-25 per BALANCE_LOG)', () => {
+    expect(dice.map((d) => d.baseCost)).toEqual([10, 100, 1000, 10000, 35000])
     expect(dice.map((d) => d.baseMultiplier)).toEqual([1, 2, 4, 8, 16])
     expect(dice.every((d) => d.costGrowth === 1.08 && d.sides === 6)).toBe(true)
     expect(dice[0]?.unlock).toEqual({ kind: 'always' })
@@ -73,5 +73,46 @@ describe('validateContent on a broken table', () => {
     expect(message).toMatch(/dice\[0\] "die_1": \(row\): Unrecognized key/)
     expect(message).toMatch(/dice\[1\] "Die-2": id: id must be lowercase snake_case/)
     expect(message).toMatch(/dice\[2\]: \(row\): /)
+  })
+})
+
+describe('validateContent on broken rules', () => {
+  it('names every rules field that fails the schema, with the rules prefix', () => {
+    const message = messageOf(() =>
+      validateContent({
+        rules: {
+          autoRoll: { baseIntervalMs: 0, unlock: { kind: 'owned', id: 'ghost', count: 1 } },
+          offline: { tickMs: 1.5, maxTicks: 100000, capMs: 1 },
+        },
+      }),
+    )
+    expect(message).toMatch(/Content validation failed/)
+    expect(message).toMatch(/rules: autoRoll\.baseIntervalMs: /)
+    expect(message).toMatch(/rules: offline\.tickMs: /)
+    expect(message).not.toMatch(/capMs/)
+    expect(message).not.toMatch(/maxTicks/)
+  })
+
+  it('names a dangling unlock id once the rules parse', () => {
+    const message = messageOf(() =>
+      validateContent({
+        rules: { ...content.rules, autoRoll: { ...content.rules.autoRoll, unlock: { kind: 'owned', id: 'ghost', count: 1 } } },
+      }),
+    )
+    expect(message).toMatch(/rules "autoRoll\.unlock": unlock refers to unknown id "ghost"/)
+    expect(message).toMatch(/1 problem\(s\)/)
+  })
+
+  it('rejects unknown keys and a non-object rules table', () => {
+    expect(messageOf(() => validateContent({ rules: { ...content.rules, bonus: 1 } }))).toMatch(
+      /rules: \(root\): Unrecognized key/,
+    )
+    expect(messageOf(() => validateContent({ rules: 42 }))).toMatch(/rules: \(root\): /)
+  })
+
+  it('accepts the shipped rules alongside a broken dice table without touching them', () => {
+    const message = messageOf(() => validateContent({ dice: [{ ...dice[0], costGrowth: 1 }] }))
+    expect(message).toMatch(/dice\[0\] "die_1": costGrowth: /)
+    expect(message).not.toMatch(/rules/)
   })
 })

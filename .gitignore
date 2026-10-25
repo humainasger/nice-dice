@@ -29,3 +29,7 @@ coverage
 .claude/settings.local.json
 # Per-machine Claude Browser dev-server config
 .claude/launch.json
+
+# Playwright output
+test-results/
+playwright-report/

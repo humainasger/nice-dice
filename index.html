@@ -13,6 +13,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Theme before first paint: settings theme if set, else the OS preference. Mirrors src/app/theme.ts.
+      try {
+        var s = JSON.parse(localStorage.getItem('nice-dice:settings') || '{}');
+        var t = s && s.theme;
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        if (s && s.reduceMotion) document.documentElement.classList.add('reduce-motion');
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -5,6 +5,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  Nice Dice look and feel (docs/plans/active/m3-game.md, "Look and feel"): a warm, tactile table at
+  night. Ink background, ivory dice with ink pips, one amber accent for points and the primary
+  button, a cool secondary for charms and luck, soft shadows, 16 px radius cards, Geist with
+  tabular numerals. The shadcn variables below carry the palette; the game tokens (die, amber,
+  cool, gold, rarity, rank) sit next to them and are exposed as Tailwind colours through @theme.
+  Motion lives at the bottom: 150 to 300 ms, transforms and opacity only, collapsed to one frame
+  under .reduce-motion (the settings switch) and prefers-reduced-motion. src/ui/fx/README.md
+  documents how to use all of it.
+*/
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
@@ -39,6 +50,23 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    /* Game tokens: bg-die, fill-die-pip, text-amber-text, bg-cool, text-rarity-epic, text-rank-top ... */
+    --color-die: var(--die);
+    --color-die-pip: var(--die-pip);
+    --color-die-edge: var(--die-edge);
+    --color-die-raised: var(--die-raised);
+    --color-amber: var(--amber);
+    --color-amber-text: var(--amber-text);
+    --color-cool: var(--cool);
+    --color-cool-text: var(--cool-text);
+    --color-gold: var(--gold);
+    --color-rarity-common: var(--rarity-common);
+    --color-rarity-rare: var(--rarity-rare);
+    --color-rarity-epic: var(--rarity-epic);
+    --color-rank-low: var(--rank-low);
+    --color-rank-mid: var(--rank-mid);
+    --color-rank-high: var(--rank-high);
+    --color-rank-top: var(--rank-top);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -48,73 +76,113 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Light: ivory table, ink text. Amber and cool are fills; the *-text partners are the same hues
+   darkened enough to read on ivory (amber on ivory is under 2:1 otherwise). */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: #faf7f0;
+    --foreground: #0f0e17;
+    --card: #fffdf8;
+    --card-foreground: #0f0e17;
+    --popover: #fffdf8;
+    --popover-foreground: #0f0e17;
+    --primary: #f2b134;
+    --primary-foreground: #0f0e17;
+    --secondary: #7ad3ff;
+    --secondary-foreground: #0f0e17;
+    --muted: #efe9dc;
+    --muted-foreground: #625d55;
+    --accent: #f8edd3;
+    --accent-foreground: #0f0e17;
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --border: #e5ddcc;
+    --input: #e5ddcc;
+    --ring: #f2b134;
+    --chart-1: #f2b134;
+    --chart-2: #7ad3ff;
+    --chart-3: #a78bfa;
+    --chart-4: #86b78a;
+    --chart-5: #e88a8a;
+    /* 0.7rem: rounded-xl (cards) lands on 16 px, rounded-lg (buttons) on 11 px. */
+    --radius: 0.7rem;
+    --sidebar: #fffdf8;
+    --sidebar-foreground: #0f0e17;
+    --sidebar-primary: #f2b134;
+    --sidebar-primary-foreground: #0f0e17;
+    --sidebar-accent: #f8edd3;
+    --sidebar-accent-foreground: #0f0e17;
+    --sidebar-border: #e5ddcc;
+    --sidebar-ring: #f2b134;
+    /* Game tokens */
+    --die: #fffaf0;
+    --die-pip: #0f0e17;
+    --die-edge: #d9d0bb;
+    --die-raised: #f2b134;
+    --amber: #f2b134;
+    --amber-text: #a3680a;
+    --cool: #7ad3ff;
+    --cool-text: #176f9e;
+    --gold: #ffd166;
+    --rarity-common: #8a8578;
+    --rarity-rare: #176f9e;
+    --rarity-epic: #7c4dcc;
+    --rank-low: #625d55;
+    --rank-mid: #176f9e;
+    --rank-high: #a3680a;
+    --rank-top: #c2410c;
+    --shadow-soft: 0 1px 2px rgb(15 14 23 / 6%), 0 10px 28px -14px rgb(15 14 23 / 22%);
 }
 
+/* Dark: ink table, ivory text. Amber and cool read on ink as they are. */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: #0f0e17;
+    --foreground: #f3efe6;
+    --card: #171625;
+    --card-foreground: #f3efe6;
+    --popover: #1b1a2b;
+    --popover-foreground: #f3efe6;
+    --primary: #f2b134;
+    --primary-foreground: #0f0e17;
+    --secondary: #7ad3ff;
+    --secondary-foreground: #0f0e17;
+    --muted: #222134;
+    --muted-foreground: #a7a29a;
+    --accent: #2a2740;
+    --accent-foreground: #f3efe6;
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --border: rgb(243 239 230 / 10%);
+    --input: rgb(243 239 230 / 15%);
+    --ring: #f2b134;
+    --chart-1: #f2b134;
+    --chart-2: #7ad3ff;
+    --chart-3: #c4a6ff;
+    --chart-4: #9ccf9f;
+    --chart-5: #f0a3a3;
+    --sidebar: #171625;
+    --sidebar-foreground: #f3efe6;
+    --sidebar-primary: #f2b134;
+    --sidebar-primary-foreground: #0f0e17;
+    --sidebar-accent: #2a2740;
+    --sidebar-accent-foreground: #f3efe6;
+    --sidebar-border: rgb(243 239 230 / 10%);
+    --sidebar-ring: #f2b134;
+    /* Game tokens */
+    --die: #f6f0e1;
+    --die-pip: #0f0e17;
+    --die-edge: #c9c0ab;
+    --die-raised: #f2b134;
+    --amber: #f2b134;
+    --amber-text: #f2b134;
+    --cool: #7ad3ff;
+    --cool-text: #7ad3ff;
+    --gold: #ffd166;
+    --rarity-common: #a39f96;
+    --rarity-rare: #7ad3ff;
+    --rarity-epic: #c4a6ff;
+    --rank-low: #a7a29a;
+    --rank-mid: #7ad3ff;
+    --rank-high: #f2b134;
+    --rank-top: #ffd166;
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 35%), 0 14px 36px -16px rgb(0 0 0 / 70%);
 }
 
 @layer base {
@@ -128,27 +196,143 @@
     @apply font-sans;
     }
 }
-/* Dice roll nudge, transform only; skipped under reduced motion. */
-@keyframes die-roll {
-  0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(12deg) scale(1.06); }
-  100% { transform: rotate(0deg) scale(1); }
+
+/* Utilities. @utility registers them with Tailwind so variants (sm:, dark:, hover:) work. */
+
+/* Tabular numerals for anything that counts: points, costs, levels, timers. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
-.die-rolling { animation: die-roll 300ms ease-out; }
-@media (prefers-reduced-motion: reduce) {
-  .die-rolling { animation: none; }
+
+/* The big points number: 2.5rem on a phone, 4rem on a desktop, tabular, tight. */
+@utility text-points {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
-/* The settings switch adds .reduce-motion on <html> (src/app/theme.ts); it matches the OS preference above. */
-.reduce-motion .die-rolling { animation: none; }
-/* Reduced motion, from the OS or the switch: every animation and transition collapses to a single frame,
-   including the shadcn dialog and select transitions from tw-animate-css. */
+
+/* Soft card shadow, both themes (see --shadow-soft). */
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+/* Amber halo for the top hand, an ascended die, the affordable primary action. */
+@utility glow-amber {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--amber) 45%, transparent), 0 0 28px -6px var(--amber);
+}
+
+/* Cool halo for charms and luck. */
+@utility glow-cool {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--cool) 45%, transparent), 0 0 28px -6px var(--cool);
+}
+
+/* Motion. Transforms and opacity only, 150 to 300 ms, and the one slow float at 900 ms. */
+
+/* A 3D cube turn for a die: a full rotateX and rotateY turn, so the face reads correctly at the end. */
+@keyframes die-tumble {
+  0%   { transform: perspective(600px) rotateX(0deg) rotateY(0deg) scale(1); }
+  30%  { transform: perspective(600px) translateY(-6px) rotateX(-130deg) rotateY(80deg) scale(1.14); }
+  65%  { transform: perspective(600px) translateY(-2px) rotateX(-260deg) rotateY(250deg) scale(1.06); }
+  100% { transform: perspective(600px) rotateX(-360deg) rotateY(360deg) scale(1); }
+}
+/* .die-rolling is the class DieFace already wears for ROLL_PULSE_MS (300 ms); .die-tumble is the
+   400 ms version from the brief for whoever bumps the pulse. Same keyframes. */
+.die-rolling,
+.die-tumble {
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.die-rolling { animation: die-tumble 300ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.die-tumble { animation: die-tumble 400ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+/* A parent that wants real depth on the tumble (cards do not need it). */
+.die-stage { perspective: 600px; }
+
+/* A "+N" that rises 40 px and fades. The element sits at left/top of its anchor; translateX(-50%) centres it. */
+@keyframes float-up {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.9); }
+  15%  { opacity: 1; transform: translate(-50%, -6px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(1); }
+}
+.float-up {
+  animation: float-up 900ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* A label that slams in: 1.4 down past 1 and back, 250 ms. */
+@keyframes slam-in {
+  0%   { opacity: 0; transform: scale(1.4); }
+  60%  { opacity: 1; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.slam-in {
+  animation: slam-in 250ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  will-change: transform, opacity;
+}
+/* The callout's exit: ComboCallout adds this after its hold. */
+.combo-out {
+  opacity: 0;
+  transition: opacity 250ms ease-out;
+}
+
+/* One particle of a burst. Particles sets --dx, --dy, --size, --delay, --rot and --end-scale per span. */
+@keyframes burst {
+  0%   { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, -40px)) scale(var(--end-scale, 0.3)) rotate(var(--rot, 180deg)); }
+}
+.particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--size, 8px);
+  height: var(--size, 8px);
+  margin: calc(var(--size, 8px) / -2);
+  border-radius: 9999px;
+  background: var(--particle-color, var(--gold));
+  animation: burst var(--dur, 700ms) cubic-bezier(0.1, 0.8, 0.3, 1) var(--delay, 0ms) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+.particle-square { border-radius: 2px; }
+.particle-gold { --particle-color: var(--gold); }
+.particle-gold-alt { --particle-color: var(--amber); }
+.particle-gold-ivory { --particle-color: var(--die); }
+.particle-cool { --particle-color: var(--cool); }
+.particle-cool-alt { --particle-color: var(--secondary-foreground); }
+.particle-cool-ivory { --particle-color: var(--die); }
+
+/* A 4 px shake, 200 ms. */
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%  { transform: translate(-4px, 2px); }
+  40%  { transform: translate(4px, -2px); }
+  60%  { transform: translate(-3px, -1px); }
+  80%  { transform: translate(3px, 1px); }
+}
+.shake { animation: shake 200ms ease-in-out; }
+
+/* Reduced motion, from the OS or the settings switch (src/app/theme.ts puts .reduce-motion on
+   <html>): every animation and transition collapses to a single frame, including the shadcn
+   dialog and select transitions from tw-animate-css and every keyframe above. The fx components
+   also skip spawning particles and floating numbers when motion is reduced. */
 @media (prefers-reduced-motion: reduce) {
+  .die-rolling, .die-tumble, .float-up, .slam-in, .particle, .shake { animation: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
+.reduce-motion .die-rolling,
+.reduce-motion .die-tumble,
+.reduce-motion .float-up,
+.reduce-motion .slam-in,
+.reduce-motion .particle,
+.reduce-motion .shake { animation: none; }
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;

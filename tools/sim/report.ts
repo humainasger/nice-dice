@@ -1,7 +1,7 @@
 // Report shapes and rendering for the sim: the JSON written to docs/balance-report.json (stable,
 // no timestamps, so a rerun on the same content is byte-identical), the Markdown tables, and the
 // diff between two reports that run.ts prints against the committed JSON.
-import { content, type Id, type RulesDef } from '@/content'
+import { content, type ComboId, type Id, type RulesDef } from '@/content'
 import { N } from '@/core'
 import type { Strategy } from './bots'
 import { ACT_EVERY_MS, HOUR_MS, TICK_MS, WINDOWS, type SimRun } from './sim'
@@ -14,6 +14,8 @@ export interface DieReport {
   readonly boughtMs: number | null
   /** Level at the horizon (0 while unowned). */
   readonly level: number
+  /** Ascensions at the horizon. */
+  readonly ascensions: number
 }
 
 export interface ThresholdReport {
@@ -27,6 +29,9 @@ export interface RunReport {
   readonly hours: number
   readonly horizonMs: number
   readonly autoRollUnlockMs: number | null
+  readonly firstAscensionMs: number | null
+  readonly firstCharmMs: number | null
+  readonly firstLuckMs: number | null
   readonly dice: readonly DieReport[]
   readonly totalEarned: readonly ThresholdReport[]
   /** Dice never bought within the horizon. */
@@ -37,6 +42,11 @@ export interface RunReport {
     readonly totalEarned: string
     readonly rolls: number
     readonly incomePerSecond: string
+    readonly luck: number
+    readonly prestiges: number
+    readonly charms: number
+    /** Upgrade level per hand at the horizon, in content order. */
+    readonly comboLevels: readonly number[]
   }
 }
 
@@ -48,6 +58,7 @@ export interface ContentSnapshot {
     readonly baseMultiplier: number
     readonly unlock: string
   }[]
+  readonly combos: readonly { readonly id: ComboId; readonly base: number }[]
   readonly rules: RulesDef
 }
 
@@ -92,6 +103,7 @@ export function snapshotContent(): ContentSnapshot {
       baseMultiplier: def.baseMultiplier,
       unlock: describeUnlock(def.unlock),
     })),
+    combos: content.combos.map((def) => ({ id: def.id, base: def.base })),
     rules: content.rules,
   }
 }
@@ -102,18 +114,25 @@ const clip = (ms: number | null, horizonMs: number): number | null => (ms !== nu
 export function runReports(run: SimRun): RunReport[] {
   return run.horizons.map((horizon) => {
     const { state } = horizon
-    const dice = run.milestones.dice.map((die) => ({
-      id: die.id,
-      affordableMs: clip(die.affordableMs, horizon.ms),
-      boughtMs: clip(die.boughtMs, horizon.ms),
-      level: state.dice.find((slot) => slot.id === die.id)?.level ?? 0,
-    }))
+    const dice = run.milestones.dice.map((die) => {
+      const slot = state.dice.find((d) => d.id === die.id)
+      return {
+        id: die.id,
+        affordableMs: clip(die.affordableMs, horizon.ms),
+        boughtMs: clip(die.boughtMs, horizon.ms),
+        level: slot?.level ?? 0,
+        ascensions: slot?.ascensions ?? 0,
+      }
+    })
     return {
       strategy: run.strategy,
       seed: run.seed,
       hours: horizon.hours,
       horizonMs: horizon.ms,
       autoRollUnlockMs: clip(run.milestones.autoRollUnlockMs, horizon.ms),
+      firstAscensionMs: clip(run.milestones.firstAscensionMs, horizon.ms),
+      firstCharmMs: clip(run.milestones.firstCharmMs, horizon.ms),
+      firstLuckMs: clip(run.milestones.firstLuckMs, horizon.ms),
       dice,
       totalEarned: run.milestones.totalEarned.map((mark) => ({ threshold: mark.threshold, ms: clip(mark.ms, horizon.ms) })),
       deadContent: dice.filter((die) => die.boughtMs === null).map((die) => die.id),
@@ -122,6 +141,10 @@ export function runReports(run: SimRun): RunReport[] {
         totalEarned: N.serialize(state.totalEarned),
         rolls: state.rolls,
         incomePerSecond: N.serialize(horizon.incomePerSecond),
+        luck: state.luck,
+        prestiges: state.prestiges,
+        charms: state.charms.length,
+        comboLevels: content.combos.map((def) => state.combos[def.id] ?? 0),
       },
     }
   })
@@ -176,12 +199,16 @@ function groupRuns(runs: readonly RunReport[]): Map<string, RunReport[]> {
   return groups
 }
 
+const inWindow = (ms: number | null, window: { readonly min: number; readonly max: number }): boolean =>
+  ms !== null && ms >= window.min && ms <= window.max
+
 function windowsTable(runs: readonly RunReport[]): string {
   const groups = groupRuns(runs.filter((run) => run.strategy === 'active'))
   const header = [
     'Seed',
     `die_2 affordable (target ${formatMs(WINDOWS.die2AffordableMs.min)} to ${formatMs(WINDOWS.die2AffordableMs.max)})`,
     `all five owned (target by ${formatMs(WINDOWS.allDiceOwnedMs)})`,
+    `first luck (target ${formatMs(WINDOWS.firstLuckMs.min)} to ${formatMs(WINDOWS.firstLuckMs.max)})`,
     `dead content at ${formatMs(WINDOWS.deadContentMs)}`,
   ]
   const rows: string[][] = []
@@ -189,18 +216,20 @@ function windowsTable(runs: readonly RunReport[]): string {
     const longest = group.at(-1)
     if (longest === undefined) continue
     const die2 = longest.dice.find((die) => die.id === 'die_2')?.affordableMs ?? null
-    const die2Ok = die2 !== null && die2 >= WINDOWS.die2AffordableMs.min && die2 <= WINDOWS.die2AffordableMs.max
     const bought = longest.dice.map((die) => die.boughtMs)
     const allOwnedMs = bought.every((ms) => ms !== null) ? Math.max(...bought.map((ms) => ms ?? 0)) : null
     const allOk = allOwnedMs !== null && allOwnedMs <= WINDOWS.allDiceOwnedMs
     const canJudgeAll = longest.horizonMs >= WINDOWS.allDiceOwnedMs || allOwnedMs !== null
+    const canJudgeLuck = longest.horizonMs >= WINDOWS.firstLuckMs.max || longest.firstLuckMs !== null
     const canJudgeDead = longest.horizonMs >= WINDOWS.deadContentMs || bought.every((ms) => ms !== null)
     const dead = longest.dice.filter((die) => die.boughtMs === null || die.boughtMs > WINDOWS.deadContentMs).map((die) => die.id)
+    const tooShort = `horizon too short (${formatHours(longest.hours)})`
     rows.push([
       String(longest.seed),
-      `${formatMs(die2)} ${die2Ok ? 'pass' : 'FAIL'}`,
-      canJudgeAll ? `${formatMs(allOwnedMs)} ${allOk ? 'pass' : 'FAIL'}` : `horizon too short (${formatHours(longest.hours)})`,
-      canJudgeDead ? (dead.length === 0 ? 'none, pass' : `${dead.join(', ')} FAIL`) : `horizon too short (${formatHours(longest.hours)})`,
+      `${formatMs(die2)} ${inWindow(die2, WINDOWS.die2AffordableMs) ? 'pass' : 'FAIL'}`,
+      canJudgeAll ? `${formatMs(allOwnedMs)} ${allOk ? 'pass' : 'FAIL'}` : tooShort,
+      canJudgeLuck ? `${formatMs(longest.firstLuckMs)} ${inWindow(longest.firstLuckMs, WINDOWS.firstLuckMs) ? 'pass' : 'FAIL'}` : tooShort,
+      canJudgeDead ? (dead.length === 0 ? 'none, pass' : `${dead.join(', ')} FAIL`) : tooShort,
     ])
   }
   if (rows.length === 0) return '_No active runs in this report._'
@@ -219,6 +248,9 @@ function runTable(group: readonly RunReport[]): string {
     row(`${die.id} affordable`, (run) => formatMs(run.dice[index]?.affordableMs ?? null))
     row(`${die.id} bought`, (run) => formatMs(run.dice[index]?.boughtMs ?? null))
   }
+  row('First ascension', (run) => formatMs(run.firstAscensionMs))
+  row('First charm', (run) => formatMs(run.firstCharmMs))
+  row('First luck', (run) => formatMs(run.firstLuckMs))
   for (const [index, mark] of first.totalEarned.entries()) {
     row(`Total earned ${N.format(N.from(mark.threshold))}`, (run) => formatMs(run.totalEarned[index]?.ms ?? null))
   }
@@ -227,6 +259,9 @@ function runTable(group: readonly RunReport[]): string {
   row('Points unspent at end', (run) => fmt(run.end.points))
   row('Rolls at end', (run) => String(run.end.rolls))
   row('Die levels at end', (run) => run.dice.map((die) => die.level).join(' / '))
+  row('Ascensions at end', (run) => run.dice.map((die) => die.ascensions).join(' / '))
+  row('Combo levels at end', (run) => run.end.comboLevels.join(' / '))
+  row('Charms / luck / prestiges at end', (run) => `${run.end.charms} / ${run.end.luck} / ${run.end.prestiges}`)
   row('Dead content', (run) => (run.deadContent.length === 0 ? 'none' : run.deadContent.join(', ')))
   return table(header, rows)
 }
@@ -250,11 +285,19 @@ export function renderMarkdown(report: BalanceReport): string {
       report.content.dice.map((die) => [die.id, String(die.baseCost), String(die.costGrowth), String(die.baseMultiplier), die.unlock]),
     ),
   )
-  const { autoRoll, offline } = report.content.rules
+  parts.push(table(['Hand', 'base'], report.content.combos.map((combo) => [combo.id, String(combo.base)])))
+  const { autoRoll, offline, ascension, combo, face, draft, luck, trophy } = report.content.rules
   parts.push(
-    `Rules: auto-roll every ${autoRoll.baseIntervalMs} ms, unlocked by ${describeUnlock(autoRoll.unlock)}. Offline: ${offline.tickMs} ms ticks, at most ${offline.maxTicks} ticks, cap ${offline.capMs / HOUR_MS} h.`,
+    [
+      `Rules: auto-roll every ${autoRoll.baseIntervalMs} ms, unlocked by ${describeUnlock(autoRoll.unlock)}.`,
+      `Offline: ${offline.tickMs} ms ticks, at most ${offline.maxTicks} ticks, cap ${offline.capMs / HOUR_MS} h.`,
+      `Ascension at level ${ascension.level}, x${ascension.multiplier}. Combo upgrades ${combo.upgradeCost} x ${combo.costGrowth}^level, +${combo.step} of base per level.`,
+      `Faces: cap ${face.cap}, cost baseCost x ${face.costFactor} x ${face.costGrowth}^n, from level ${face.unlockLevel}.`,
+      `Draft: ceil(${draft.growth}^taken) ascensions, ${draft.offerSize} offered, weights ${draft.rarityWeights.common}/${draft.rarityWeights.rare}/${draft.rarityWeights.epic}.`,
+      `Luck: from ${luck.threshold} run points, +${luck.perPoint} per luck. Trophies: x${trophy.multiplier} each.`,
+    ].join(' '),
   )
-  parts.push('## Pacing windows (GDD section 12 proposals, active bot)')
+  parts.push('## Pacing windows (GDD section 12 proposals and m3-game.md, active bot)')
   parts.push(windowsTable(report.runs))
   for (const group of groupRuns(report.runs).values()) {
     const first = group[0]
@@ -282,6 +325,12 @@ export function diffReports(before: BalanceReport, after: BalanceReport): string
   for (const die of before.content.dice) {
     if (!after.content.dice.some((d) => d.id === die.id)) lines.push(`content: ${die.id} removed`)
   }
+  const beforeCombos = new Map((before.content.combos ?? []).map((combo) => [combo.id, combo.base]))
+  for (const combo of after.content.combos) {
+    const old = beforeCombos.get(combo.id)
+    if (old === undefined) lines.push(`content: ${combo.id} added`)
+    else if (old !== combo.base) lines.push(`content: ${combo.id}.base ${old} -> ${combo.base}`)
+  }
   const beforeRules = JSON.stringify(before.content.rules)
   const afterRules = JSON.stringify(after.content.rules)
   if (beforeRules !== afterRules) lines.push(`content: rules ${beforeRules} -> ${afterRules}`)
@@ -295,8 +344,8 @@ export function diffReports(before: BalanceReport, after: BalanceReport): string
       continue
     }
     const changes: string[] = []
-    const ms = (label: string, a: number | null, b: number | null) => {
-      if (a !== b) changes.push(`${label} ${formatMs(a)} -> ${formatMs(b)}`)
+    const ms = (label: string, a: number | null | undefined, b: number | null) => {
+      if ((a ?? null) !== b) changes.push(`${label} ${formatMs(a ?? null)} -> ${formatMs(b)}`)
     }
     ms('auto-roll unlocked', old.autoRollUnlockMs, run.autoRollUnlockMs)
     for (const die of run.dice) {
@@ -306,6 +355,9 @@ export function diffReports(before: BalanceReport, after: BalanceReport): string
       ms(`${die.id} bought`, oldDie.boughtMs, die.boughtMs)
       if (oldDie.level !== die.level) changes.push(`${die.id} level ${oldDie.level} -> ${die.level}`)
     }
+    ms('first ascension', old.firstAscensionMs, run.firstAscensionMs)
+    ms('first charm', old.firstCharmMs, run.firstCharmMs)
+    ms('first luck', old.firstLuckMs, run.firstLuckMs)
     for (const mark of run.totalEarned) {
       const oldMark = old.totalEarned.find((m) => m.threshold === mark.threshold)
       if (oldMark !== undefined) ms(`total earned ${N.format(N.from(mark.threshold))}`, oldMark.ms, mark.ms)

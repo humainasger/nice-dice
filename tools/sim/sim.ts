@@ -29,6 +29,8 @@ export const WINDOWS = {
   die2AffordableMs: { min: 1 * MINUTE_MS, max: 3 * MINUTE_MS },
   /** All five dice owned within 45 minutes of active play. */
   allDiceOwnedMs: 45 * MINUTE_MS,
+  /** First luck (prestige) between 30 and 90 minutes of active play (m3-game.md balance windows). */
+  firstLuckMs: { min: 30 * MINUTE_MS, max: 90 * MINUTE_MS },
   /** Dead content: every die bought within 2 hours of active play. */
   deadContentMs: 2 * HOUR_MS,
   /** applyOffline with the tick cap versus 8 h fully stepped: relative difference in points. */
@@ -51,6 +53,12 @@ export interface ThresholdMilestone {
 
 export interface Milestones {
   autoRollUnlockMs: number | null
+  /** First simulated ms at which any die had ascended. */
+  firstAscensionMs: number | null
+  /** First simulated ms at which a charm was held. */
+  firstCharmMs: number | null
+  /** First simulated ms at which the player had prestiged. */
+  firstLuckMs: number | null
   readonly dice: readonly DieMilestones[]
   readonly totalEarned: readonly ThresholdMilestone[]
 }
@@ -80,6 +88,9 @@ export function horizonTicks(hours: readonly number[]): number[] {
 function emptyMilestones(state: GameState): Milestones {
   return {
     autoRollUnlockMs: null,
+    firstAscensionMs: null,
+    firstCharmMs: null,
+    firstLuckMs: null,
     dice: state.dice.map((die) => ({ id: die.id, affordableMs: null, boughtMs: null })),
     totalEarned: POINT_THRESHOLDS.map((threshold) => ({ threshold, ms: null })),
   }
@@ -89,6 +100,13 @@ function emptyMilestones(state: GameState): Milestones {
 function observe(milestones: Milestones, state: GameState): void {
   const now = state.playMs
   if (milestones.autoRollUnlockMs === null && state.autoRoll.unlocked) milestones.autoRollUnlockMs = now
+  if (milestones.firstAscensionMs === null && (state.dice.some((die) => die.ascensions > 0) || state.trophies.includes('first_ascension'))) {
+    milestones.firstAscensionMs = now
+  }
+  if (milestones.firstCharmMs === null && (state.charms.length > 0 || state.trophies.includes('first_charm'))) {
+    milestones.firstCharmMs = now
+  }
+  if (milestones.firstLuckMs === null && state.prestiges > 0) milestones.firstLuckMs = now
   for (const die of milestones.dice) {
     if (die.boughtMs !== null) continue
     const view = dieView(state, die.id)

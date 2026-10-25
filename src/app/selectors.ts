@@ -1,16 +1,27 @@
 // String and primitive selectors for the UI, so components never build objects or hand Decimals
 // to React (CLAUDE.md rule 4). Object-shaped views (one die card) go through useShallow at the
 // call site. The format* helpers are pure and take the clock as an argument, for tests.
-import { content, type Id, type UnlockCondition } from '@/content'
+import { COMBO_IDS, content, type ComboId, type Id, type UnlockCondition } from '@/content'
 import {
   N,
   bulkCost,
+  canAscend,
+  comboView,
   dieDef,
+  dieFaceView,
   dieView,
+  expectedComboMultiplier,
   expectedPointsPerSecond,
+  handCounts,
+  handMembers,
+  levelCap,
   levelCost,
+  luckPreview,
+  multiplierBreakdown,
   nextUnlock,
   pointsPerRollExpected,
+  rollValues,
+  type DieState,
   type OfflineSummary,
 } from '@/core'
 import type { RecoveryCandidate, SaveStatus, StoreState, Theme } from './store'
@@ -190,3 +201,216 @@ export function selectDieCostText(id: Id): (s: StoreState) => string {
 }
 
 export const selectUpdateReady = (s: StoreState): boolean => s.ui.updateReady
+
+// Sound (src/app/audio.ts reads the same flag on every play call)
+export const selectSound = (s: StoreState): boolean => s.ui.settings.sound
+
+// M3 table selectors (docs/plans/active/m3-game.md): the die slot with faces, ascension and face
+// editing, the combo rows, the hand callout, the multiplier breakdown and the tab shell's badges.
+// Object views hold primitives and strings only, so useShallow at the call site sees a change only
+// when something on screen changes.
+
+/** Rank of a hand, 1 (pair) to 7 (five of a kind); 0 for none. The combos table is weakest first. */
+export function handRank(hand: ComboId | null): number {
+  return hand === null ? 0 : COMBO_IDS.indexOf(hand) + 1
+}
+
+/** "12%", "1.5%", "0.08%": a share in [0, 1] as a percentage with the precision its size needs. Locale independent. */
+export function formatPercent(share: number): string {
+  if (!(share > 0)) return '0%'
+  const percent = share * 100
+  if (percent >= 10) return `${percent.toFixed(0)}%`
+  if (percent >= 1) return `${percent.toFixed(1)}%`
+  return `${percent.toFixed(2)}%`
+}
+
+function ownedCount(dice: readonly DieState[]): number {
+  let n = 0
+  for (const die of dice) if (die.owned) n += 1
+  return n
+}
+
+/** Position of the die at content `index` among the owned dice (lastRoll.faces order), or -1 while unowned. */
+function ownedIndex(dice: readonly DieState[], index: number): number {
+  const die = dice[index]
+  if (die === undefined || !die.owned) return -1
+  let n = 0
+  for (let i = 0; i < index; i++) if (dice[i]?.owned) n += 1
+  return n
+}
+
+// The last roll's hand
+export const selectLastHand = (s: StoreState): ComboId | null => s.game.lastRoll?.hand ?? null
+/** "FULL HOUSE 9.6x": the last roll's hand at its current upgraded multiplier, for the callout. Empty without a hand. */
+export const selectHandText = (s: StoreState): string => {
+  const hand = s.game.lastRoll?.hand ?? null
+  if (hand === null) return ''
+  const v = comboView(s.game, hand)
+  return `${v.def.name.toUpperCase()} ${N.format(v.multiplier)}x`
+}
+export const selectHandRank = (s: StoreState): number => handRank(s.game.lastRoll?.hand ?? null)
+/** Lifetime four and five of a kind: a counter that moves exactly when a big hand lands (particles, shake). */
+export const selectBigHands = (s: StoreState): number =>
+  (s.game.stats.hands.four_kind ?? 0) + (s.game.stats.hands.five_kind ?? 0)
+/** Printed values of the last roll in owned-dice order, space separated; the sides when the dice changed since. */
+export const selectLastRollValues = (s: StoreState): string => {
+  const last = s.game.lastRoll
+  if (last === null) return ''
+  if (last.faces.length !== ownedCount(s.game.dice)) return last.faces.join(' ')
+  return rollValues(s.game, last.faces).join(' ')
+}
+
+// Multiplier breakdown chips
+export interface BreakdownView {
+  readonly dice: string
+  readonly combo: string
+  readonly charms: string
+  readonly luck: string
+  readonly trophies: string
+  readonly total: string
+}
+/** Every factor of the points formula, formatted. Wrap in useShallow at the call site. */
+export const selectBreakdown = (s: StoreState): BreakdownView => {
+  const b = multiplierBreakdown(s.game)
+  return {
+    dice: N.format(b.dice),
+    combo: N.format(b.combo),
+    charms: N.format(b.charms),
+    luck: N.format(b.luck),
+    trophies: N.format(b.trophies),
+    total: N.format(b.total),
+  }
+}
+
+// Die slots
+export interface DieSlotView {
+  readonly name: string
+  readonly owned: boolean
+  readonly unlocked: boolean
+  readonly level: number
+  readonly cap: number
+  readonly atCap: boolean
+  readonly ascensions: number
+  readonly multiplier: string
+  /** Cost of the next level, or the buy price while unowned. */
+  readonly nextCost: string
+  readonly cost10: string
+  readonly costMax: string
+  readonly affordable: boolean
+  readonly maxAffordable: number
+  readonly canBuy: boolean
+  readonly canAscend: boolean
+  /** Side (1 to 6) the die landed on in the last roll; null before the first roll or while unowned. */
+  readonly side: number | null
+  /** Printed value of that side; null like side. */
+  readonly value: number | null
+  /** The six printed faces in side order, space separated: "1 2 3 4 5 6". */
+  readonly faces: string
+  readonly faceUnlocked: boolean
+  readonly canUpgradeFace: boolean
+  readonly faceCost: string
+  readonly faceCap: number
+  /** Side index the next face upgrade raises (the lowest, first on ties). */
+  readonly faceNext: number
+  /** Every face sits at the cap. */
+  readonly facesMaxed: boolean
+  /** The die is one of the dice that form the last roll's hand. */
+  readonly inHand: boolean
+  /** What unlocks the die; empty once unlocked. */
+  readonly unlockText: string
+}
+
+/** Selector factory for one die card with the M3 fields. index is the die's position in content order. Memoise at the call site. */
+export function selectDieSlot(id: Id, index: number): (s: StoreState) => DieSlotView {
+  return (s) => {
+    const v = dieView(s.game, id)
+    const f = dieFaceView(s.game, id)
+    const last = s.game.lastRoll
+    const at = ownedIndex(s.game.dice, index)
+    const side = last !== null && at >= 0 ? (last.faces[at] ?? null) : null
+    const value = side === null ? null : (f.faces[side - 1] ?? null)
+    const inHand = last !== null && at >= 0 && last.hand !== null && handMembers(last.faces).includes(at)
+    const lowest = f.faces[f.nextIndex] ?? f.cap
+    return {
+      name: v.def.name,
+      owned: v.owned,
+      unlocked: v.unlocked,
+      level: v.level,
+      cap: v.cap,
+      atCap: v.atCap,
+      ascensions: v.ascensions,
+      multiplier: N.format(v.multiplier),
+      nextCost: N.format(v.nextCost),
+      cost10: v.owned && !v.atCap ? N.format(bulkCost(v.def, v.level, 10, v.ascensions)) : '',
+      costMax: v.owned && v.maxAffordable > 0 ? N.format(bulkCost(v.def, v.level, v.maxAffordable, v.ascensions)) : '',
+      affordable: v.affordable,
+      maxAffordable: v.maxAffordable,
+      canBuy: v.canBuy,
+      canAscend: v.owned && canAscend(s.game, id),
+      side,
+      value,
+      faces: f.faces.join(' '),
+      faceUnlocked: f.unlocked,
+      canUpgradeFace: f.canUpgrade,
+      faceCost: N.format(f.nextCost),
+      faceCap: f.cap,
+      faceNext: f.nextIndex,
+      facesMaxed: f.faces.length > 0 && lowest >= f.cap,
+      inHand,
+      unlockText: v.unlocked ? '' : describeUnlock(v.def.unlock),
+    }
+  }
+}
+
+/** Some die has ascended or sits at the cap: the auto-ascend switch has something to say. */
+export const selectAscensionVisible = (s: StoreState): boolean =>
+  s.game.dice.some((die) => die.ascensions > 0 || (die.owned && die.level >= levelCap()))
+export const selectAutoAscend = (s: StoreState): boolean => s.game.autoAscend
+
+// Combos
+export interface ComboRowView {
+  readonly name: string
+  readonly level: number
+  readonly multiplier: string
+  readonly nextCost: string
+  readonly affordable: boolean
+  /** Share of rolls with the dice owned whose best hand is this one: "12%". "0%" while impossible. */
+  readonly frequency: string
+  /** The hand can come up with the dice owned. */
+  readonly possible: boolean
+  /** Lifetime rolls whose best hand was this one. */
+  readonly seen: number
+}
+
+/** Selector factory for one combo row. Memoise at the call site and wrap in useShallow. */
+export function selectComboRow(id: ComboId): (s: StoreState) => ComboRowView {
+  return (s) => {
+    const v = comboView(s.game, id)
+    const n = ownedCount(s.game.dice)
+    const sides = content.dice[0]?.sides ?? 6
+    const counts = n >= 2 ? handCounts(n, sides) : null
+    const share = counts === null ? 0 : (counts.total.get(id) ?? 0) / counts.patterns
+    return {
+      name: v.def.name,
+      level: v.level,
+      multiplier: N.format(v.multiplier),
+      nextCost: N.format(v.nextCost),
+      affordable: v.affordable,
+      frequency: formatPercent(share),
+      possible: share > 0,
+      seen: s.game.stats.hands[id] ?? 0,
+    }
+  }
+}
+
+/** Hands need two dice; the Combos tab is locked until the second die is owned. */
+export const selectCombosUnlocked = (s: StoreState): boolean => ownedCount(s.game.dice) >= 2
+export const selectOwnedCount = (s: StoreState): number => ownedCount(s.game.dice)
+/** Mean best-hand multiplier over every pattern of the owned dice, formatted. */
+export const selectCombosExpectedText = (s: StoreState): string => N.format(expectedComboMultiplier(s.game))
+
+// Tab shell
+export const selectDraftOpen = (s: StoreState): boolean => s.game.draft.offer !== null
+export const selectHasNewTrophy = (s: StoreState): boolean => s.game.newTrophy !== null
+export const selectLuckUnlocked = (s: StoreState): boolean => luckPreview(s.game).unlocked
+export const selectLuck = (s: StoreState): number => s.game.luck

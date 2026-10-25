@@ -23,6 +23,8 @@ export type Theme = 'auto' | 'light' | 'dark'
 export interface Settings {
   readonly theme: Theme
   readonly reduceMotion: boolean
+  /** Sound effects (src/app/audio.ts). On by default; nothing plays before the first user gesture either way. */
+  readonly sound: boolean
 }
 
 export interface SaveStatus {
@@ -85,7 +87,7 @@ export interface StoreState {
 const SETTINGS_KEY = 'nice-dice:settings'
 const THEMES: readonly Theme[] = ['auto', 'light', 'dark']
 
-export const defaultSettings: Settings = { theme: 'auto', reduceMotion: false }
+export const defaultSettings: Settings = { theme: 'auto', reduceMotion: false, sound: true }
 
 /** Settings from their stored JSON text. Anything missing or malformed falls back to the default. Pure, for tests. */
 export function parseSettings(raw: string | null): Settings {
@@ -95,9 +97,11 @@ export function parseSettings(raw: string | null): Settings {
     if (typeof parsed !== 'object' || parsed === null) return defaultSettings
     const theme = 'theme' in parsed ? parsed.theme : undefined
     const reduceMotion = 'reduceMotion' in parsed ? parsed.reduceMotion : undefined
+    const sound = 'sound' in parsed ? parsed.sound : undefined
     return {
       theme: THEMES.find((t) => t === theme) ?? defaultSettings.theme,
       reduceMotion: typeof reduceMotion === 'boolean' ? reduceMotion : defaultSettings.reduceMotion,
+      sound: typeof sound === 'boolean' ? sound : defaultSettings.sound,
     }
   } catch {
     return defaultSettings

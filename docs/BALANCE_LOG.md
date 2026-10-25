@@ -2,6 +2,52 @@
 
 One entry per balance change, newest at the top. A balance change is any edit to a number in `src/content` or to a formula in `src/core` that changes what the sim prints. The entry goes in the same pull request as the change, and the owner approves it before merge.
 
+## 2026-10-25 M3 mechanics: ascension cost multiplier 300 (new) and luck threshold 1e6 to 1e10
+
+Measured: the M3 systems as `docs/plans/active/m3-game.md` wrote them (combos, faces, ascension x100 at level 100 with the level cost restarting from baseCost, charms, luck from 1e6 run points, trophies), active bot, seeds 1 / 2 / 3, 8 h horizon. The early game held: die_2 affordable 0:01:04 / 0:01:22 / 0:01:08 (P1 pass), all five dice 0:14:49 / 0:13:42 / 0:13:58 (pass). The mid game did not. With the M1 shopping rule the bot never sprinted to level 100, so the first ascension and the first charm landed at 2:55:44 / 2:55:32 / 2:52:38 and the first luck at 0:29:24 / 0:30:47 / 0:30:03 (seed 1 FAIL against 0:30:00 to 1:30:00). Once a die did ascend the game ran away: a cycle to the cap cost the same ~250K every time while output went x100, so by 8 h every die had 155 ascensions, luck was 1.4e17 and lifetime points 4.21e342 / 5.61e345 / 2.82e342. With a bot that values the sprint to the cap (the ascension plus buying back to the same level on the x100 curve, see below) the first ascension moved to 0:14 to 0:16 and the runaway followed it: with a cost multiplier of 100 (a cycle costs what it pays) and the 1e6 threshold, seed 1 reached 1e6 at 0:15:54, prestiged at 0:16:39 and had 1e1646 points at 1 h; raising the threshold alone barely moved the first luck (1e7 to 2.5e8 gave 0:26 to 0:30) because the post-ascension income explodes within minutes. Sweep over `ascension.costMultiplier` x `luck.threshold`, first ascension / first luck, seeds 1 / 2 / 3, 90 min horizon:
+
+| costMultiplier | threshold | First ascension | First luck | Lifetime points at 90 min |
+|---|---|---|---|---|
+| 1 (brief) | 1e6 | 2:55 / 2:55 / 2:52 (M1 bot) | 0:29:24 / 0:30:47 / 0:30:03 | about 1e9 (then 1e342 by 8 h) |
+| 100 | 1e6 | 0:15:24 / 0:13:32 / 0:16:33 | 0:16:39 / 0:15:07 / 0:18:13 | 1e1646 at 1 h (seed 1) |
+| 300 | 1e6 | 0:14:29 / 0:13:52 / 0:14:03 | 0:15:19 / 0:15:23 / 0:14:53 | 7e96 / 3e74 / 1e22 |
+| 300 | 1e9 | same | 0:25:19 / 0:32:57 / 0:27:56 | 23B / 12B / 13B |
+| 300 | 1e10 | same | 0:34:42 / 0:43:02 / 0:36:45 | 83B / 95B / 140B |
+| 300 | 1e12 | same | 0:39:57 / 0:49:41 / 0:43:24 | 8T / 8T / 8T |
+| 500 | 1e9 | 0:14:29 / 0:14:22 / 0:15:13 | 0:31:14 / 0:29:47 / 0:32:28 | 12B / 12B / 11B |
+| 500 | 1e10 | same | 0:38:59 / 0:37:32 / 0:40:23 | 81B / 80B / 80B |
+| 1000 | 1e6 | not reached / not reached / 0:50:18 | 0:28:24 / 0:29:22 / 0:31:38 | 16M / 15M / 18M |
+| 1000 | 5e6 | 0:43:44 / 0:41:42 / 0:48:33 | 0:46:24 / 0:44:07 / 0:49:43 | 41M / 42M / 41M |
+
+Changed: `src/content/rules.ts` `ascension.costMultiplier` added at 300 (every level cost on a die is multiplied by 300 per ascension, so the cost curve does not restart from baseCost; the formula is `levelCost(def, level, ascensions)` in `src/core/formulas.ts`), and `luck.threshold` 1000000 to 10000000000 (GDD section 7, trigger). GDD section 4 needs the cost multiplier in its level cost rule, section 5 the combos table (bases 2 / 3 / 4 / 6 / 8 / 12 / 50, upgrade 50 x 2.35^level, +0.1 of base per level), charms (14 rows) and the draft (ceil(1.15^taken), weights 6 / 3 / 1), section 7 the threshold, section 10 the trophies table (14 rows, x1.02 each); the GDD is owner-edited and still carries the brief's 1e6, so those rows need the owner's edit with this entry as the reason. `src/content/content.test.ts` pins the new values. No other content number changed: dice, combo bases, charm effects, face costs, draft growth and the luck formula are the brief as written.
+Why: the m3-game.md balance windows (die_2 at 1 to 3 min, all five by 45 min, first luck between 30 and 90 min) plus the GDD section 8 proposal of a first draft at 10 to 20 min. 300 keeps the first ascension at about 14 minutes (a cycle costs three times what it pays, so a player still sprints for it) while 1000 pushed it past 40 minutes and left the first luck run without a draft; 1e10 puts the first luck a comfortable five minutes inside the window on the earliest seed. 500 x 1e10 was the runner-up (first luck 0:37 to 0:40, slightly tamer 8 h: 1e93 against 1e124).
+Sim table (active bot, milestones from the 8 h run; `pnpm sim --strategy active,idle --seeds 1,2,3 --hours 0.25,1,8`, 100 ms ticks, bot acts once per simulated second):
+
+| Metric | Before (seed 1 / 2 / 3) | After (seed 1 / 2 / 3) | Target |
+|---|---|---|---|
+| die_2 affordable | 0:01:04 / 0:01:22 / 0:01:08 | 0:01:04 / 0:01:22 / 0:01:08 | P1: 0:01:00 to 0:03:00, pass |
+| die_3 bought | 0:04:24 / 0:04:32 / 0:04:53 | 0:04:24 / 0:03:07 / 0:04:43 | none |
+| die_4 bought | 0:09:54 / 0:08:57 / 0:09:23 | 0:07:49 / 0:06:57 / 0:08:28 | none |
+| die_5 bought (all five owned) | 0:14:49 / 0:13:42 / 0:13:58 | 0:08:59 / 0:08:22 / 0:09:23 | by 0:45:00, pass |
+| First ascension | 2:55:44 / 2:55:32 / 2:52:38 | 0:14:29 / 0:13:52 / 0:14:03 | GDD section 8 first draft 0:10 to 0:20 (proposal) |
+| First charm | 2:55:45 / 2:55:33 / 2:52:39 | 0:14:30 / 0:13:53 / 0:14:04 | one second after the first ascension |
+| First luck | 0:29:24 FAIL / 0:30:47 / 0:30:03 | 0:34:42 / 0:43:02 / 0:36:45 | 0:30:00 to 1:30:00, pass |
+| Total earned 1.00M | 0:18:49 / 0:18:27 / 0:17:53 | 0:15:04 / 0:14:34 / 0:14:38 | none |
+| Total earned 1.00B | 2:55:52 / 2:55:40 / 2:52:47 | 0:23:54 / 0:31:33 / 0:26:36 | none |
+| Income at 1 h (points/s) | 642 / 816 / 832 | 40.7M / 348K / 104M | none |
+| Total earned at 1 h | 8.09M / 8.12M / 8.15M | 52.8B / 42.4B / 61.0B | none |
+| Total earned at 8 h | 4.21e342 / 5.61e345 / 2.82e342 | 3.85e124 / 1.15e122 / 1.11e134 | none, see below |
+| Ascensions of die_1 at 8 h | 155 / 155 / 155 | 44 / 47 / 48 | none |
+| Charms / prestiges at 8 h | 45 / 23, 45 / 23, 33 / 23 | 24 / 21, 25 / 20, 24 / 21 | none |
+| Dead content at 2 h | none | none | none, pass |
+| Idle bot (never clicks) | earns nothing | earns nothing | unchanged, see the die_5 entry |
+
+Bot changes in the same slice (`tools/sim/bots.ts`, not content): the M1 rule "most output multiplier per point, save for it when it is not yet affordable" stays for die levels and new dice; the M3 purchases are valued in the same unit (a combo upgrade as the dice sum times the relative lift of the mean hand multiplier, a face upgrade as the die's multiplier over its face total); a "sprint" candidate values every level to the cap as the whole cycle a player sees (ascend, buy back to today's level on the x100 curve); a new die is bought the moment it is affordable (the per-point rule cannot see the hands a die adds, and without this the bot cycled die_1 forever and left dice 4 and 5 dead); levels are bought in chunks of at least a tenth of the room to the cap and the bot saves only for a target within ten minutes of income, so a round never stalls or ping-pongs. die_2 affordable moved from 0:01:14 / 0:01:22 / 0:01:28 (M1 log entry) to 0:01:04 / 0:01:22 / 0:01:08 from the bot's spending order, not from content.
+
+Open for the owner, not changed here: (1) the game still runs away by 8 h (1e122 to 1e134) because luck is floor(sqrt(run / threshold)) with the bot prestiging every 20 minutes, which makes each run's multiplier the square root of an exponentially growing total; GDD section 3 expects 1e308 within hours, so this is noted, not fixed; the levers would be a log luck formula or a longer cadence, both design changes. (2) `luckOnReset` clamps one prestige's luck at MAX_SAFE_INTEGER in core so the integer save schema holds; by 8 h the sum shows as about 1e17. (3) All five dice now arrive by 0:09 and the first ascension at 0:14, both well inside their windows; if the owner wants a slower first quarter hour the levers are die_4 and die_5 baseCost or the combo bases.
+
+Approved by: owner, pending (delegated M3 tuning per `docs/plans/active/m3-game.md`; this entry is the review record).
+
 ## 2026-10-25 die_5 baseCost 100000 to 35000
 
 Measured: active clicker, seeds 1 / 2 / 3, 8 h horizon, committed Idle Dice baseline: all five dice owned at 1:17:44 / 1:17:52 / 1:17:48, target by 0:45:00 (`tools/sim/balance.test.ts`, "all five dice are owned within 45 minutes"), so the window failed by about 33 minutes on every seed. The earlier dice were on time (die_2 affordable 0:01:14 / 0:01:22 / 0:01:28 inside the 1 to 3 minute P1 window, die_3 at about 0:05, die_4 at about 0:18:40) and nothing was dead content at 2 h. The sim agent also measured costGrowth across the allowed 1.05 to 1.15 range: die_5 stays between 1:16:38 and 1:23:08 because its fixed baseCost dominates, and 1.06 or lower breaks P1 (die_2 affordable at 0:49 on seed 1), so growth is not the lever.

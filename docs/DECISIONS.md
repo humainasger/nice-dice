@@ -100,9 +100,9 @@ Decision: Num results are normalised in the wrapper because break_infinity's add
 Why: `N.serialize` writes `<mantissa>e<exponent>` and `N.parse` reads it strictly. A result such as `0.9999999999999999e4` serialises and parses to a Decimal that is not `eq` to the original, so the property test for exact round trips failed on values produced by `add`. Normalising once in the wrapper keeps the fix in the one file that imports `break_infinity.js` (D3).
 Would flip it: a break_infinity.js release that normalises its own results, which would make the step redundant but harmless.
 
-## D15 Name check for "Nice Dice" (2026-10-25), decision pending
+## D15 Name check for "Nice Dice" (2026-10-25), decided: keep as working title
 
-Status: open. The public repo and first deploy wait on this.
+Status: decided 2026-10-25, option (a). Asger keeps "Nice Dice" as a working title that is used but not owned: no trademark filing, nothing physical under the name, a qualifier in store listings, and a trademark attorney opinion before any ad-supported distribution. Repo humainasger/nice-dice.
 
 Facts, checked 2026-10-25:
 

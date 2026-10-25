@@ -1,11 +1,12 @@
-// Balance assertions on the committed content (docs/plans/active/m1-core.md, Sim): the GDD
-// section 12 windows for the active bot on seeds 1 to 3, dead content within 2 h, applyOffline
-// against 8 h stepped at 100 ms, and determinism of the sim itself. A failing window here means
-// tuning src/content within the spec bounds plus a docs/BALANCE_LOG.md entry, not editing the test.
+// Balance assertions on the committed content (docs/plans/active/m1-core.md and m3-game.md, Sim):
+// the GDD section 12 windows for the active bot on seeds 1 to 3, first luck between 30 and 90
+// minutes, dead content within 2 h, applyOffline against 8 h stepped at 100 ms, and determinism of
+// the sim itself. A failing window here means tuning src/content within the spec bounds plus a
+// docs/BALANCE_LOG.md entry, not editing the test.
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
-import { advance, applyOffline, N, serializeState, type GameState, type Num } from '@/core'
-import { bestPurchase, bots } from './bots'
+import { advance, applyOffline, dispatch, expectedPointsPerSecond, luckOnReset, N, serializeState, type GameState, type Num } from '@/core'
+import { bestPurchase, bots, pickCharms, shouldPrestige, PRESTIGE_COOLDOWN_MS } from './bots'
 import { buildReport, diffReports, formatMs, renderMarkdown, type BalanceReport, type ReportArgs } from './report'
 import { HOUR_MS, simulate, TICK_MS, WINDOWS, type SimRun } from './sim'
 
@@ -31,7 +32,7 @@ const die = (run: SimRun, id: string) => {
 
 const abs = (x: Num): Num => N.max(x, N.sub(0, x))
 
-describe('pacing windows, active bot (GDD section 12 proposals)', () => {
+describe('pacing windows, active bot (GDD section 12 proposals and m3-game.md)', () => {
   it.each(SEEDS)('P1: die_2 is affordable between minute 1 and 3 (seed %i)', { timeout: SIM_TIMEOUT_MS }, (seed) => {
     const at = die(activeRun(seed), 'die_2').affordableMs
     expect(at, 'die_2 never became affordable').not.toBeNull()
@@ -49,6 +50,14 @@ describe('pacing windows, active bot (GDD section 12 proposals)', () => {
         WINDOWS.allDiceOwnedMs,
       )
     }
+  })
+
+  it.each(SEEDS)('first luck lands between 30 and 90 minutes of active play (seed %i)', { timeout: SIM_TIMEOUT_MS }, (seed) => {
+    const at = activeRun(seed).milestones.firstLuckMs
+    const { min, max } = WINDOWS.firstLuckMs
+    expect(at, 'the bot never prestiged within 2 h').not.toBeNull()
+    expect(at, `first luck at ${formatMs(at)}, window ${formatMs(min)} to ${formatMs(max)}`).toBeGreaterThanOrEqual(min)
+    expect(at, `first luck at ${formatMs(at)}, window ${formatMs(min)} to ${formatMs(max)}`).toBeLessThanOrEqual(max)
   })
 })
 
@@ -108,6 +117,14 @@ describe('sim', () => {
     expect(run.horizons.map((h) => h.ms)).toEqual([180_000])
     expect(run.horizons[0]?.state.playMs).toBe(180_000)
   })
+
+  it('records the M3 milestones in order on the 2 h active run', { timeout: SIM_TIMEOUT_MS }, () => {
+    const { milestones } = activeRun(1)
+    expect(milestones.firstAscensionMs).not.toBeNull()
+    expect(milestones.firstCharmMs).not.toBeNull()
+    expect(milestones.firstLuckMs).not.toBeNull()
+    expect(milestones.firstAscensionMs ?? 0).toBeLessThanOrEqual(milestones.firstCharmMs ?? 0)
+  })
 })
 
 describe('report', () => {
@@ -130,7 +147,9 @@ describe('report', () => {
     const markdown = renderMarkdown(report)
     expect(markdown).toContain('## active, seed 1')
     expect(markdown).toContain('| Metric | 3 min | 6 min |')
+    expect(markdown).toContain('| First luck |')
     expect(markdown).toContain(`| die_5 | ${die5.baseCost} | ${die5.costGrowth} | ${die5.baseMultiplier} | die_4 at level 1 |`)
+    expect(markdown).toContain('| five_kind | 50 |')
 
     expect(diffReports(report, report)).toEqual([])
     const retuned = die5.baseCost * 2
@@ -174,6 +193,44 @@ describe('bots', () => {
     const start = simulate('active', 1, [0.001]).horizons[0]?.state
     if (start === undefined) throw new Error('setup: no snapshot')
     const best = bestPurchase({ ...start, points: N.from(1e9) })
-    expect(best?.command).toEqual({ type: 'levelDie', id: 'die_1', count: 1 })
+    expect(best?.command).toMatchObject({ type: 'levelDie', id: 'die_1' })
+  })
+
+  it('picks the offered charm that lifts income most', () => {
+    // A die at the cap ascends and opens the first draft; the pick must beat or match every alternative.
+    const start = simulate('active', 1, [0.001]).horizons[0]?.state
+    if (start === undefined) throw new Error('setup: no snapshot')
+    const capped: GameState = {
+      ...start,
+      dice: start.dice.map((d, i) => (i === 0 ? { ...d, level: content.rules.ascension.level } : d)),
+    }
+    const opened = dispatch(capped, { type: 'ascend', id: 'die_1' })
+    expect(opened.draft.offer).not.toBeNull()
+    const picked = pickCharms(opened)
+    expect(picked.charms).toHaveLength(1)
+    expect(picked.draft.offer).toBeNull()
+    const alternatives = (opened.draft.offer ?? []).map((_, index) => dispatch(opened, { type: 'pickCharm', index }))
+    for (const alternative of alternatives) {
+      expect(N.gte(expectedPointsPerSecond(picked), expectedPointsPerSecond(alternative))).toBe(true)
+    }
+  })
+
+  it('prestiges once luck on reset is at least 2 and the cooldown has passed', () => {
+    const start = simulate('active', 1, [0.001]).horizons[0]?.state
+    if (start === undefined) throw new Error('setup: no snapshot')
+    const threshold = content.rules.luck.threshold
+    const rich = (run: number, extra: Partial<GameState> = {}): GameState => ({
+      ...start,
+      totalEarned: N.from(run),
+      totalEarnedRun: N.from(run),
+      ...extra,
+    })
+    expect(luckOnReset(rich(threshold))).toBe(1)
+    expect(shouldPrestige(rich(threshold))).toBe(false)
+    expect(shouldPrestige(rich(4 * threshold))).toBe(true)
+    const recent = rich(4 * threshold, { prestiges: 1, playMs: 10 * 60_000, stats: { ...start.stats, lastLuckAt: 0 } })
+    expect(shouldPrestige(recent)).toBe(false)
+    const cooled = rich(4 * threshold, { prestiges: 1, playMs: PRESTIGE_COOLDOWN_MS, stats: { ...start.stats, lastLuckAt: 0 } })
+    expect(shouldPrestige(cooled)).toBe(true)
   })
 })

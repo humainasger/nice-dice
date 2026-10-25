@@ -1,6 +1,8 @@
-// Roll controls: the manual Roll button (Space rolls too, except while typing or in a dialog), the
-// auto-roll switch with its progress bar to the next roll, or the hint on how to unlock it.
+// Roll controls: the manual Roll button (Space rolls too, except while typing or in a dialog) with
+// its roll sound, the auto-roll switch with its progress bar to the next roll, or the hint on how
+// to unlock it.
 import { useEffect } from 'react'
+import { play } from '@/app/audio'
 import { selectAutoEnabled, selectAutoIntervalText, selectAutoProgress, selectAutoUnlocked } from '@/app/selectors'
 import { send, useGameStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
@@ -12,6 +14,7 @@ const SPACE_OWNERS = 'button, input, textarea, select, [contenteditable], [role=
 
 function roll(): void {
   send({ type: 'roll' })
+  play('roll')
 }
 
 export function RollControls() {
@@ -34,19 +37,32 @@ export function RollControls() {
   return (
     <section
       aria-label="Roll controls"
-      className="flex flex-col gap-4 rounded-xl bg-card px-5 py-4 text-card-foreground ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-4 rounded-xl bg-card px-5 py-4 text-card-foreground ring-1 ring-foreground/10 shadow-soft sm:flex-row sm:items-center sm:justify-between"
     >
-      <Button size="lg" data-testid="roll-button" onClick={roll} className="min-h-12 w-full gap-2 text-base touch-manipulation sm:w-auto sm:min-w-44">
+      <Button
+        size="lg"
+        data-testid="roll-button"
+        onClick={roll}
+        className="min-h-12 w-full gap-2 text-base font-semibold glow-amber touch-manipulation sm:w-auto sm:min-w-44"
+      >
         Roll
-        <kbd aria-hidden="true" className="hidden rounded border border-primary-foreground/30 px-1.5 py-0.5 font-sans text-xs font-normal opacity-80 sm:inline">
+        <kbd
+          aria-hidden="true"
+          className="hidden rounded border border-primary-foreground/30 px-1.5 py-0.5 font-sans text-xs font-normal opacity-80 sm:inline"
+        >
           Space
         </kbd>
       </Button>
 
       {autoUnlocked ? (
         <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-          <label htmlFor="auto-roll" className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation">
-            <span>Auto-roll every {intervalText}</span>
+          <label
+            htmlFor="auto-roll"
+            className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation"
+          >
+            <span>
+              Auto-roll every <span className="tabular">{intervalText}</span>
+            </span>
             <Switch
               id="auto-roll"
               aria-label="Auto-roll"

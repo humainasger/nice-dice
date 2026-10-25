@@ -1,6 +1,6 @@
 # M3 game: mechanics that make it a game, and a UI worth looking at
 
-Status: in progress 2026-10-25. Branch `m3-game`. Owner wants speed over ceremony: keep `pnpm check` green and the guards in place, skip adversarial review rounds, keep tests to what protects saves and formulas.
+Status: built 2026-10-26, verified in the browser, not committed, not deployed. Branch `m3-game`. Owner wants speed over ceremony: keep `pnpm check` green and the guards in place, skip adversarial review rounds, keep tests to what protects saves and formulas. Build notes at the end.
 
 ## Mechanics (content tables plus core)
 
@@ -26,3 +26,38 @@ Layout: a tab bar on phones (Table, Combos, Charms, Luck, Trophies) and a two-co
 ## Done when
 
 `pnpm check` and `pnpm test:e2e` green, the game plays through its first luck in the browser, and the deploy is live.
+
+## Build notes
+
+Built 2026-10-25 to 2026-10-26 by four builders (core and content, fx, table, meta) and one verifier. Nothing committed yet; no package added.
+
+What landed
+
+- Content: `combos.ts` (7 hands), `charms.ts` (14), `trophies.ts` (14), `rules.ts` sections for ascension, combo, face, draft, luck and trophy; `validateContent` covers every table.
+- Core: the M3 state fields, the eight new commands, exact expected value with hands (patterns enumerated once per dice count and decomposed per face, no state-keyed cache needed), `SAVE_VERSION` 2 with the v1 migration and `tests/fixtures/saves/v2.json`, trophy check after every mutating command and inside `advance`, auto-ascend in `levelDie`, `setAutoAscend` and an `advance` sweep. Sim bots use every new command.
+- App: `settings.sound`, `src/app/audio.ts` (jsfxr, eight sounds, silent until the first gesture), `selectors.meta.ts`, the table selectors.
+- UI: tab shell (bottom bar on phones, two columns from lg, active tab in `localStorage` under `nice-dice:tab`), points panel with count-up and the breakdown chips, dice board with the callout, floating gains, particles and shake, die cards with faces, ascension and face editing, combos panel, charms, draft dialog, luck, trophies, stats, trophy toast, sound and auto-ascend switches in settings. Every M2 test id kept; `points` now sits on a visually hidden span with the true value while the big number tweens.
+
+Two retunes beyond the brief, both in `docs/BALANCE_LOG.md` (2026-10-25) and both needing the owner's GDD edits: `rules.ascension.costMultiplier` 300 (a die's level cost does not restart from `baseCost` after ascending; without it the game ran away minutes after the first ascension) and `rules.luck.threshold` 1e6 to 1e10 (at 1e6 the first luck landed at 16 min). Sim windows on seeds 1 to 3: die_2 at 1:04 to 1:22, all five dice by 8:22 to 9:23, first ascension and charm at 13:52 to 14:29, first luck at 34:42 to 43:02.
+
+Verification (2026-10-26)
+
+- `pnpm check`: tsc clean, oxlint with only the two pre-existing `src/components/ui` fast-refresh warnings, vitest 22 files, 381 passed, 1 skipped (the fixture generator).
+- `pnpm test:e2e`: 10 passed against the dev server (M2 smoke, import, recovery), unchanged tests.
+- Headless playthrough (throwaway Playwright script, fresh context): rolled 3 times, levelled die_1, auto-roll switch appeared on and rolled on its own within 5.6 s, bought die_2 (the Company toast fired), rolled to a pair. Table, Combos, Charms, Luck, Trophies and Settings screenshotted at 1280x800 and 390x844 in dark and light themes; zero console errors or warnings on load and after every tab.
+- A v1 save in the storage envelope loads through the migration without a recovery dialog (49.94 points, die_1 at level 4, auto-roll on, 14 rolls) and writes back as version 2 after a roll.
+
+Verifier fixes in the screenshots
+
+- The combo callout was centred vertically over the board, which on a phone is about 1900 px tall, so "PAIR 2x" rendered far below the fold while the player tapped Roll; on desktop it sat on the second card's level buttons at 16 px. Now pinned over the first row of dice (`items-start pt-14`), the points gained ride under the hand name (`detail` prop), and the tiers are text-xl to 3xl on phones and 2xl to 5xl from sm, sized so "FOUR OF A KIND 13.2x" fits a 390 px board.
+- The floating "+N" spawned at 20 percent of the board's height, over the first card's buttons on phones and across an ivory face on desktop. It now rises from a strip along the board's top edge.
+- The trophy toast at `bottom: 1rem` covered the phone tab bar; it now sits above the bar below lg.
+
+Open for the owner
+
+- GDD sections 4, 5, 7 and 10 need rows for the cost multiplier, combos, charms, the draft, the luck threshold and trophies.
+- The 8 h sim still runs away (lifetime 1e122 to 1e134, luck summed near 1e17) through `luck = floor(sqrt(run / threshold))` with a prestige every 20 min; reported, not fixed.
+- `motion` is not installed, so the count-up is a rAF tween with the same 250 ms and reduce-motion fallback. `src/app/jsfxr.d.ts` carries the ambient types jsfxr lacks.
+- Epic charms are drawn amber per this brief; the `rarity-epic` purple token exists unused. The draft dialog cannot be dismissed without picking. The toast shows only the latest trophy when one change awards several.
+- The idle bot still earns nothing (auto-roll unlock needs die_1 level 2), unchanged from M1. `selectDieCard` in `src/app/selectors.ts` is unused since `selectDieSlot` replaced it.
+- Not verified by the verifier: a full run to the first luck in the browser (the sim puts it at 35 to 43 minutes of play) and the deploy.

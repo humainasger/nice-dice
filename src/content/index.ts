@@ -2,20 +2,41 @@
 // startup and the content tests run in CI. Add a row table here and in rowSchemas when one lands;
 // a single-object table like rules gets its own block in validateContent.
 import type { ZodType } from 'zod'
+import { charms } from './charms'
+import { combos } from './combos'
 import { dice } from './dice'
 import { rules, rulesSchema, type RulesDef } from './rules'
-import { dieDefSchema, type DieDef, type Id, type UnlockCondition } from './schema'
+import {
+  charmDefSchema,
+  COMBO_IDS,
+  comboDefSchema,
+  dieDefSchema,
+  trophyDefSchema,
+  type CharmDef,
+  type ComboDef,
+  type DieDef,
+  type Id,
+  type TrophyDef,
+  type UnlockCondition,
+} from './schema'
+import { trophies } from './trophies'
 
 export * from './schema'
 export { dice } from './dice'
+export { combos } from './combos'
+export { charms } from './charms'
+export { trophies } from './trophies'
 export { rules, rulesSchema, type RulesDef } from './rules'
 
 export interface ContentTables {
   readonly dice: readonly DieDef[]
+  readonly combos: readonly ComboDef[]
+  readonly charms: readonly CharmDef[]
+  readonly trophies: readonly TrophyDef[]
   readonly rules: RulesDef
 }
 
-export const content: ContentTables = { dice, rules }
+export const content: ContentTables = { dice, combos, charms, trophies, rules }
 
 type TableName = keyof ContentTables
 /** Tables made of rows with ids. The rest (rules) are single objects. */
@@ -28,6 +49,9 @@ export type RawTables = {
 
 const rowSchemas: { readonly [K in RowTableName]: ZodType<ContentTables[K][number]> } = {
   dice: dieDefSchema,
+  combos: comboDefSchema,
+  charms: charmDefSchema,
+  trophies: trophyDefSchema,
 }
 
 /** Ids an unlock condition points at. Exhaustive, so a new kind must declare what it references. */
@@ -42,6 +66,13 @@ function referencedIds(unlock: UnlockCondition): readonly Id[] {
   }
 }
 
+const DIE_TARGET = 'die:'
+
+/** The die id a charm effect names, if its target is a die. */
+export function charmDieTarget(target: string): Id | null {
+  return target.startsWith(DIE_TARGET) ? target.slice(DIE_TARGET.length) : null
+}
+
 function idOf(raw: unknown): string | undefined {
   if (typeof raw !== 'object' || raw === null || !('id' in raw)) return undefined
   return typeof raw.id === 'string' ? raw.id : undefined
@@ -49,13 +80,15 @@ function idOf(raw: unknown): string | undefined {
 
 /**
  * Checks that every row of every table parses, that the rules object parses, that ids are unique
- * across all tables and that every id an unlock condition references exists. Throws one Error
+ * across all tables, that every id a row references (die unlocks, charm die targets, trophy die
+ * conditions) exists, and that the combos table has every hand exactly once. Throws one Error
  * listing every problem found.
  */
 export function validateContent(tables: RawTables = content): void {
   const problems: string[] = []
   const declaredAt = new Map<string, string[]>()
-  const unlocks: { where: string; unlock: UnlockCondition }[] = []
+  const references: { where: string; id: Id; what: string }[] = []
+  const comboRows: string[] = []
 
   for (const table of Object.keys(rowSchemas) as RowTableName[]) {
     const schema = rowSchemas[table]
@@ -72,14 +105,27 @@ export function validateContent(tables: RawTables = content): void {
         }
         return
       }
-      unlocks.push({ where, unlock: result.data.unlock })
+      const row = result.data
+      if ('unlock' in row) {
+        for (const ref of referencedIds(row.unlock)) references.push({ where, id: ref, what: 'unlock' })
+      }
+      if ('effect' in row) {
+        const die = charmDieTarget(row.effect.target)
+        if (die !== null) references.push({ where, id: die, what: 'effect target' })
+      }
+      if ('condition' in row && row.condition.kind === 'dieOwned') {
+        references.push({ where, id: row.condition.id, what: 'condition' })
+      }
+      if (table === 'combos') comboRows.push(row.id)
     })
   }
 
   const rawRules = tables.rules === undefined ? content.rules : tables.rules
   const rulesResult = rulesSchema.safeParse(rawRules)
   if (rulesResult.success) {
-    unlocks.push({ where: 'rules "autoRoll.unlock"', unlock: rulesResult.data.autoRoll.unlock })
+    for (const ref of referencedIds(rulesResult.data.autoRoll.unlock)) {
+      references.push({ where: 'rules "autoRoll.unlock"', id: ref, what: 'unlock' })
+    }
   } else {
     for (const issue of rulesResult.error.issues) {
       const path = issue.path.map(String).join('.') || '(root)'
@@ -90,9 +136,12 @@ export function validateContent(tables: RawTables = content): void {
   for (const [id, places] of declaredAt) {
     if (places.length > 1) problems.push(`duplicate id "${id}" declared at ${places.join(', ')}`)
   }
-  for (const { where, unlock } of unlocks) {
-    for (const id of referencedIds(unlock)) {
-      if (!declaredAt.has(id)) problems.push(`${where}: unlock refers to unknown id "${id}"`)
+  for (const { where, id, what } of references) {
+    if (!declaredAt.has(id)) problems.push(`${where}: ${what} refers to unknown id "${id}"`)
+  }
+  if (tables.combos !== undefined || comboRows.length > 0) {
+    for (const id of COMBO_IDS) {
+      if (!comboRows.includes(id)) problems.push(`combos: hand "${id}" has no row`)
     }
   }
 

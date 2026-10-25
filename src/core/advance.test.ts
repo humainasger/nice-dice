@@ -1,6 +1,6 @@
 // advance and applyOffline: deterministic for a seed, one roll per full interval, nothing while
-// locked or disabled, the same object when nothing changes, ticks up to the cap then the
-// expected-value remainder, negative time clamped to nothing.
+// locked or disabled, the same object when nothing changes, the auto-ascend sweep, trophies after
+// rolls, ticks up to the cap then the expected-value remainder, negative time clamped to nothing.
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
@@ -14,6 +14,7 @@ import type { GameState } from './state'
 const die1 = content.dice[0]
 if (!die1) throw new Error('these tests need a content die')
 const INTERVAL = content.rules.autoRoll.baseIntervalMs
+const CAP = content.rules.ascension.level
 
 const abs = (x: Num): Num => N.max(x, N.sub(0, x))
 /** |a - b| <= share * |b| */
@@ -22,7 +23,7 @@ const within = (a: Num, b: Num, share: number): boolean => N.lte(abs(N.sub(a, b)
 /** Auto-roll unlocked and on, by levelling the first die to 2 with a fat purse. */
 const unlocked = (seed: number, purse = 1e6): GameState => {
   const base = createInitialState(seed)
-  const rich = { ...base, points: N.from(purse), totalEarned: N.from(purse) }
+  const rich = { ...base, points: N.from(purse), totalEarned: N.from(purse), totalEarnedRun: N.from(purse) }
   const state = dispatch(rich, { type: 'levelDie', id: die1.id, count: 1 })
   if (!state.autoRoll.unlocked || !state.autoRoll.enabled) throw new Error('setup: auto-roll should be unlocked')
   return state
@@ -49,6 +50,7 @@ describe('advance', () => {
     expect(next.autoRoll).toBe(state.autoRoll)
     expect(next.rng).toBe(state.rng)
     expect(next.dice).toBe(state.dice)
+    expect(next.trophies).toBe(state.trophies)
   })
 
   it('does not roll while auto-roll is switched off', () => {
@@ -59,7 +61,7 @@ describe('advance', () => {
     expect(next.autoRoll).toBe(state.autoRoll)
   })
 
-  it('rolls once per full interval at 100 ms ticks', () => {
+  it('rolls once per full interval at 100 ms ticks and awards roll trophies', () => {
     const state = unlocked(1)
     const almost = tick(state, INTERVAL / 100 - 1)
     expect(almost.rolls).toBe(0)
@@ -69,6 +71,7 @@ describe('advance', () => {
     expect(first.autoRoll.elapsedMs).toBe(0)
     expect(first.lastRoll?.at).toBe(INTERVAL)
     expect(first.lastRoll?.faces).toHaveLength(1)
+    expect(first.trophies).toContain('first_roll')
     expect(N.gt(first.points, state.points)).toBe(true)
     expect(N.eq(N.sub(first.points, state.points), first.lastRoll?.gained ?? N.zero)).toBe(true)
     const minute = tick(state, 600)
@@ -104,6 +107,18 @@ describe('advance', () => {
     expect(next.lastRoll?.at).toBeGreaterThanOrEqual(0)
     expect(next.autoRoll.elapsedMs).toBe(100)
     expect(parseSave(serializeState(next)).ok).toBe(true)
+  })
+
+  it('ascends a die sitting at the cap when auto-ascend is on, even with auto-roll locked', () => {
+    const base = createInitialState(1)
+    const capped: GameState = { ...base, dice: base.dice.map((die, i) => (i === 0 ? { ...die, level: CAP } : die)) }
+    const swept = advance(capped, 100)
+    expect(swept.dice[0]).toMatchObject({ level: 1, ascensions: 1 })
+    expect(swept.draft.offer).not.toBeNull()
+    expect(swept.trophies).toContain('first_ascension')
+    const off: GameState = { ...capped, autoAscend: false }
+    const left = advance(off, 100)
+    expect(left.dice).toBe(off.dice)
   })
 
   it('rolls exactly floor(elapsed / interval) times over any dt sequence', () => {
@@ -200,6 +215,7 @@ describe('applyOffline', () => {
     expect(next.autoRoll.elapsedMs).toBe(0)
     expect(N.eq(next.points, N.add(stepped.points, ev))).toBe(true)
     expect(N.eq(next.totalEarned, N.add(stepped.totalEarned, ev))).toBe(true)
+    expect(N.eq(next.totalEarnedRun, N.add(stepped.totalEarnedRun, ev))).toBe(true)
     expect(N.eq(summary.gained, N.sub(next.totalEarned, state.totalEarned))).toBe(true)
     // The estimate rolls no dice: the RNG and the last real roll stay as the ticks left them.
     expect(next.rng).toEqual(stepped.rng)
@@ -220,6 +236,8 @@ describe('applyOffline', () => {
     expect(next.autoRoll.elapsedMs).toBe(1234)
     expect(next.rng).toBe(state.rng)
     expect(next.lastRoll).toBe(state.lastRoll)
+    // Estimated rolls still count towards roll trophies.
+    expect(next.trophies).toContain('first_roll')
   })
 
   it('clamps the absence to the offline cap', () => {
@@ -247,14 +265,25 @@ describe('applyOffline', () => {
     expect(defaulted.summary.estimatedMs).toBe(elapsed - defaulted.summary.simulatedMs)
   })
 
-  it('expected value tracks the stepped simulation within 5 percent over two hours', () => {
-    const state = unlocked(4)
+  it('expected value tracks the stepped simulation within 5 percent over two hours, combos included', () => {
+    // Three dice so hands matter. The roll trophies the two hours would cross are earned up front
+    // (rolls preset past 10,000, one roll dispatched), since the estimate cannot know when a
+    // stepped run would earn them; that step is a known 2 percent each.
+    const base = unlocked(4)
+    const three: GameState = {
+      ...base,
+      rolls: 10_000,
+      dice: base.dice.map((die, i) => (i <= 2 ? { ...die, owned: true, level: 5 } : die)),
+    }
+    const state = dispatch(three, { type: 'roll' })
+    expect(state.trophies).toEqual(expect.arrayContaining(['first_roll', 'ten_thousand_rolls', 'million']))
     const twoHours = 2 * 3600000
     const stepped = applyOffline(state, twoHours, { tickMs: 100, maxTicks: 1e6 })
     const estimated = applyOffline(state, twoHours, { tickMs: 100, maxTicks: 0 })
     expect(stepped.summary.simulatedMs).toBe(twoHours)
     expect(estimated.summary.estimatedMs).toBe(twoHours)
     expect(stepped.summary.rolls).toBe(estimated.summary.rolls)
+    expect(stepped.state.trophies).toEqual(state.trophies)
     expect(within(stepped.summary.gained, estimated.summary.gained, 0.05)).toBe(true)
   })
 

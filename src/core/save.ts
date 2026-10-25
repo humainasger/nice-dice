@@ -5,21 +5,47 @@
 //
 // Defaults policy: a field the save lacks (at any version) takes the value of a fresh initial
 // state, so a save written before a field existed still loads. A truncated save therefore heals
-// rather than fails; the invariants below (first die owned, totalEarned >= points, elapsedMs below
-// intervalMs, auto-roll enabled only once unlocked) are what the schema does refuse, so that every
-// state parseSave accepts is one advance and dispatch keep loadable.
+// rather than fails; the invariants below (first die owned, totalEarned >= totalEarnedRun >=
+// points, faces consistent with their upgrades and cap, elapsedMs below intervalMs, auto-roll
+// enabled only once unlocked) are what the schema does refuse, so that every state parseSave
+// accepts is one advance and dispatch keep loadable. Ids of content rows that no longer exist
+// (dice, combos, charms, trophies) are dropped on load instead of refused.
 import { z } from 'zod'
-import { content, idSchema } from '@/content'
-import { rules } from './defs'
-import { N } from './num'
+import { content, idSchema, type ComboId, type Id } from '@/content'
+import { isCharmId, isComboId, isTrophyId, rules } from './defs'
+import { charmEffectsOf } from './formulas'
+import { bestHand } from './hands'
+import { N, type Num } from './num'
 import { createRng, restoreRng } from './rng'
-import type { DieState, GameState } from './state'
+import type { DieState, Draft, GameState, Stats } from './state'
 
-export const SAVE_VERSION = 1
+export const SAVE_VERSION = 2
+
+/** The sides of a fresh die: 1 to sides. */
+export function defaultFaces(sides: number): number[] {
+  return Array.from({ length: sides }, (_, index) => index + 1)
+}
+
+const sidesOf = (id: string): number => content.dice.find((def) => def.id === id)?.sides ?? content.dice[0]?.sides ?? 1
 
 /** One slot per content die, in content order; the first die starts owned at level 1. */
-function initialDice(): DieState[] {
-  return content.dice.map((def, index) => ({ id: def.id, owned: index === 0, level: index === 0 ? 1 : 0 }))
+export function initialDice(): DieState[] {
+  return content.dice.map((def, index) => ({
+    id: def.id,
+    owned: index === 0,
+    level: index === 0 ? 1 : 0,
+    faces: defaultFaces(def.sides),
+    ascensions: 0,
+    faceUpgrades: 0,
+  }))
+}
+
+export function initialDraft(): Draft {
+  return { progress: 0, taken: 0, offer: null, rerolled: false }
+}
+
+export function initialStats(): Stats {
+  return { bestRoll: N.zero, hands: {}, lastLuckAt: 0 }
 }
 
 /** A new game. Throws on a non-finite seed (createRng). */
@@ -30,20 +56,47 @@ export function createInitialState(seed: number): GameState {
     rng: createRng(seed).getState(),
     points: N.zero,
     totalEarned: N.zero,
+    totalEarnedRun: N.zero,
     rolls: 0,
     playMs: 0,
     dice: initialDice(),
     autoRoll: { unlocked: false, enabled: false, intervalMs: rules.autoRoll.baseIntervalMs, elapsedMs: 0 },
     lastRoll: null,
+    combos: {},
+    charms: [],
+    draft: initialDraft(),
+    luck: 0,
+    prestiges: 0,
+    trophies: [],
+    newTrophy: null,
+    autoAscend: true,
+    stats: initialStats(),
   }
 }
 
 const nonNegativeNum = N.schema.refine((n) => N.gte(n, 0), { message: 'must not be negative' })
+const nonNegativeInt = z.number().int().nonnegative()
 
 const dieStateSchema = z
-  .strictObject({ id: idSchema, owned: z.boolean(), level: z.number().int().nonnegative() })
+  .strictObject({
+    id: idSchema,
+    owned: z.boolean(),
+    level: nonNegativeInt,
+    faces: z.array(z.number().int().positive()),
+    ascensions: nonNegativeInt,
+    faceUpgrades: nonNegativeInt,
+  })
   .refine((die) => (die.owned ? die.level >= 1 : die.level === 0), {
     message: 'an owned die has level >= 1, an unowned die level 0',
+  })
+  .refine((die) => die.faces.length === sidesOf(die.id), { message: 'one face per side', path: ['faces'] })
+  .refine((die) => die.faces.every((face, index) => face >= index + 1), {
+    message: 'a face is never below its starting value',
+    path: ['faces'],
+  })
+  .refine((die) => die.faces.reduce((sum, face, index) => sum + face - (index + 1), 0) === die.faceUpgrades, {
+    message: 'faceUpgrades must equal the total raise of the faces',
+    path: ['faceUpgrades'],
   })
 
 const rngSchema = z.array(z.number()).superRefine((state, ctx) => {
@@ -84,6 +137,22 @@ const autoRollSchema = z
     path: ['enabled'],
   })
 
+const draftSchema = z.strictObject({
+  progress: nonNegativeInt,
+  taken: nonNegativeInt,
+  offer: z.array(idSchema).min(1).nullable(),
+  rerolled: z.boolean(),
+})
+
+const statsSchema = z.strictObject({
+  bestRoll: nonNegativeNum,
+  hands: z.record(z.string(), nonNegativeInt),
+  lastLuckAt: z.number().nonnegative(),
+})
+
+/** a <= b, with one point absolute plus one part per million of slack for the rounding of two sums kept at different magnitudes. */
+const atMost = (a: Num, b: Num): boolean => N.lte(a, N.add(N.mul(b, 1.000001), 1)) // literal-ok: tolerance of the sanity check, not a balance value
+
 const saveSchema = z
   .strictObject({
     version: z.literal(SAVE_VERSION),
@@ -91,7 +160,8 @@ const saveSchema = z
     rng: rngSchema,
     points: nonNegativeNum,
     totalEarned: nonNegativeNum,
-    rolls: z.number().int().nonnegative(),
+    totalEarnedRun: nonNegativeNum,
+    rolls: nonNegativeInt,
     playMs: z.number().nonnegative(),
     dice: diceSchema,
     autoRoll: autoRollSchema,
@@ -100,19 +170,41 @@ const saveSchema = z
         faces: z.array(z.number().int().positive()),
         gained: nonNegativeNum,
         at: z.number().nonnegative(),
+        hand: z.string().nullable(),
       })
       .nullable(),
+    combos: z.record(z.string(), nonNegativeInt),
+    charms: z.array(idSchema),
+    draft: draftSchema,
+    luck: nonNegativeInt,
+    prestiges: nonNegativeInt,
+    trophies: z.array(idSchema).refine((ids) => new Set(ids).size === ids.length, { message: 'trophy ids must be unique' }),
+    newTrophy: idSchema.nullable(),
+    autoAscend: z.boolean(),
+    stats: statsSchema,
   })
-  // Points are only ever earned into both or spent from points, so lifetime earnings bound the
-  // purse. The two sums are rounded at their own magnitudes (break_infinity keeps 14 digits per
-  // add), so the check carries a small tolerance: one point absolute plus one part per million.
+  // Points are only ever earned into all three totals or spent from points, and the run total
+  // resets with the purse, so lifetime >= run >= purse. The sums are rounded at their own
+  // magnitudes (break_infinity keeps 14 digits per add), so the checks carry a small tolerance.
   // Tampered or corrupt saves are still refused; a rounding hair never quarantines a real save.
   // Runs only on a save whose fields all parsed, so the Nums are real.
-  .refine((save) => N.lte(save.points, N.add(N.mul(save.totalEarned, 1.000001), 1)), { // literal-ok: tolerance of the sanity check, not a balance value
-    message: 'must be at least points',
-    path: ['totalEarned'],
-    when: (payload) => payload.issues.length === 0,
-  })
+  .superRefine((save, ctx) => {
+    if (!atMost(save.points, save.totalEarned)) {
+      ctx.addIssue({ code: 'custom', message: 'must be at least points', path: ['totalEarned'] })
+    }
+    if (!atMost(save.totalEarnedRun, save.totalEarned)) {
+      ctx.addIssue({ code: 'custom', message: 'must be at least totalEarnedRun', path: ['totalEarned'] })
+    }
+    if (!atMost(save.points, save.totalEarnedRun)) {
+      ctx.addIssue({ code: 'custom', message: 'must be at least points', path: ['totalEarnedRun'] })
+    }
+    const cap = rules.face.cap + charmEffectsOf(save.charms.filter(isCharmId)).faceCap
+    save.dice.forEach((die, index) => {
+      if (die.faces.some((face) => face > cap)) {
+        ctx.addIssue({ code: 'custom', message: `faces cannot exceed the cap of ${cap}`, path: ['dice', index, 'faces'] })
+      }
+    })
+  }, { when: (payload) => payload.issues.length === 0 })
 
 /** The plain JSON shape of a save: a GameState with every Num as N.serialize text. */
 export type SaveShape = z.input<typeof saveSchema>
@@ -124,14 +216,31 @@ function toPlain(state: GameState): SaveShape {
     rng: [...state.rng],
     points: N.serialize(state.points),
     totalEarned: N.serialize(state.totalEarned),
+    totalEarnedRun: N.serialize(state.totalEarnedRun),
     rolls: state.rolls,
     playMs: state.playMs,
-    dice: state.dice.map((die) => ({ id: die.id, owned: die.owned, level: die.level })),
+    dice: state.dice.map((die) => ({
+      id: die.id,
+      owned: die.owned,
+      level: die.level,
+      faces: [...die.faces],
+      ascensions: die.ascensions,
+      faceUpgrades: die.faceUpgrades,
+    })),
     autoRoll: { ...state.autoRoll },
     lastRoll:
       state.lastRoll === null
         ? null
-        : { faces: [...state.lastRoll.faces], gained: N.serialize(state.lastRoll.gained), at: state.lastRoll.at },
+        : { faces: [...state.lastRoll.faces], gained: N.serialize(state.lastRoll.gained), at: state.lastRoll.at, hand: state.lastRoll.hand },
+    combos: { ...state.combos },
+    charms: [...state.charms],
+    draft: { ...state.draft, offer: state.draft.offer === null ? null : [...state.draft.offer] },
+    luck: state.luck,
+    prestiges: state.prestiges,
+    trophies: [...state.trophies],
+    newTrophy: state.newTrophy,
+    autoAscend: state.autoAscend,
+    stats: { bestRoll: N.serialize(state.stats.bestRoll), hands: { ...state.stats.hands }, lastLuckAt: state.stats.lastLuckAt },
   }
 }
 
@@ -148,12 +257,42 @@ export type ParseSaveResult =
 /** Takes the raw JSON object of a version v save to version v + 1. Must not mutate its input. */
 export type Migration = (raw: unknown) => unknown
 
-/** Keyed by source version and applied in order up to SAVE_VERSION. Empty while the version is 1. */
-export const migrations: Readonly<Record<number, Migration>> = {}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
+
+/**
+ * v1 to v2 (M3): every die gains its six starting faces, zero ascensions and zero face upgrades,
+ * with the level clamped to the new cap (auto-ascend takes it from there); lastRoll gains the
+ * hand its sides made; the run total starts equal to the lifetime total (no prestige yet). The
+ * other new fields (combos, charms, draft, luck, prestiges, trophies, newTrophy, autoAscend,
+ * stats) take their defaults from the deep merge.
+ */
+function migrateV1(raw: unknown): unknown {
+  if (!isPlainObject(raw)) return raw
+  const dice = Array.isArray(raw['dice'])
+    ? raw['dice'].map((die: unknown) => {
+        if (!isPlainObject(die)) return die
+        const id = typeof die['id'] === 'string' ? die['id'] : ''
+        const level = typeof die['level'] === 'number' ? Math.min(die['level'], rules.ascension.level) : die['level']
+        return { ...die, level, faces: defaultFaces(sidesOf(id)), ascensions: 0, faceUpgrades: 0 }
+      })
+    : raw['dice']
+  const lastRoll = raw['lastRoll']
+  const migratedRoll = isPlainObject(lastRoll)
+    ? {
+        ...lastRoll,
+        hand:
+          Array.isArray(lastRoll['faces']) && lastRoll['faces'].every((face: unknown) => typeof face === 'number')
+            ? bestHand(lastRoll['faces'] as number[])
+            : null,
+      }
+    : lastRoll
+  return { ...raw, version: 2, dice, lastRoll: migratedRoll, totalEarnedRun: raw['totalEarned'] } // literal-ok: the version this migration produces
+}
+
+/** Keyed by source version and applied in order up to SAVE_VERSION. */
+export const migrations: Readonly<Record<number, Migration>> = { 1: migrateV1 }
 
 /** raw over defaults: objects merge key by key, anything else in raw (arrays included) wins outright. */
 function deepMerge(defaults: unknown, raw: unknown): unknown {
@@ -177,6 +316,15 @@ function alignDice(saved: readonly DieState[]): DieState[] {
   return initialDice().map((fallback) => saved.find((die) => die.id === fallback.id) ?? fallback)
 }
 
+/** Only the entries whose key names a hand still in content. */
+function alignCombos(saved: Readonly<Record<string, number>>): Partial<Record<ComboId, number>> {
+  const combos: Partial<Record<ComboId, number>> = {}
+  for (const [id, level] of Object.entries(saved)) {
+    if (isComboId(id)) combos[id] = level
+  }
+  return combos
+}
+
 function fail(reason: ParseSaveReason, detail: string): ParseSaveResult {
   return { ok: false, reason, detail }
 }
@@ -185,7 +333,7 @@ function fail(reason: ParseSaveReason, detail: string): ParseSaveResult {
  * Parses save text. Never throws and never mutates what it reads: invalid JSON, a future version
  * and a shape the schema rejects each come back as { ok: false } with a reason and a detail.
  * Older versions are migrated in order, then the result is merged over a fresh initial state so
- * fields the save lacks get defaults, then validated.
+ * fields the save lacks get defaults, then validated, then aligned to the content tables.
  */
 export function parseSave(text: string): ParseSaveResult {
   let raw: unknown
@@ -213,6 +361,11 @@ export function parseSave(text: string): ParseSaveResult {
   // bump the field must not turn into a misleading schema failure on the version literal.
   if (version < SAVE_VERSION && isPlainObject(migrated)) migrated = { ...migrated, version: SAVE_VERSION }
 
+  // A save that lacks the run total (truncated, or hand-edited) heals to "everything so far was this
+  // run", the only default that keeps the purse under it.
+  if (isPlainObject(migrated) && !Object.hasOwn(migrated, 'totalEarnedRun') && Object.hasOwn(migrated, 'totalEarned')) {
+    migrated = { ...migrated, totalEarnedRun: migrated['totalEarned'] }
+  }
   const seed = isPlainObject(migrated) && typeof migrated['seed'] === 'number' ? migrated['seed'] : 0
   const defaults = toPlain(createInitialState(Number.isFinite(seed) ? seed : 0))
   const result = saveSchema.safeParse(deepMerge(defaults, migrated))
@@ -222,5 +375,33 @@ export function parseSave(text: string): ParseSaveResult {
       .join('; ')
     return fail('schema', detail)
   }
-  return { ok: true, state: { ...result.data, dice: alignDice(result.data.dice) } }
+  const save = result.data
+  const offer = save.draft.offer !== null && save.draft.offer.every(isCharmId) ? save.draft.offer : null
+  const knownId = (id: Id | null): Id | null => (id !== null && isTrophyId(id) ? id : null)
+  const state: GameState = {
+    version: save.version,
+    seed: save.seed,
+    rng: save.rng,
+    points: save.points,
+    totalEarned: save.totalEarned,
+    totalEarnedRun: save.totalEarnedRun,
+    rolls: save.rolls,
+    playMs: save.playMs,
+    dice: alignDice(save.dice),
+    autoRoll: save.autoRoll,
+    lastRoll:
+      save.lastRoll === null
+        ? null
+        : { ...save.lastRoll, hand: save.lastRoll.hand !== null && isComboId(save.lastRoll.hand) ? save.lastRoll.hand : null },
+    combos: alignCombos(save.combos),
+    charms: save.charms.filter(isCharmId),
+    draft: { ...save.draft, offer },
+    luck: save.luck,
+    prestiges: save.prestiges,
+    trophies: save.trophies.filter(isTrophyId),
+    newTrophy: knownId(save.newTrophy),
+    autoAscend: save.autoAscend,
+    stats: { ...save.stats, hands: alignCombos(save.stats.hands) },
+  }
+  return { ok: true, state }
 }

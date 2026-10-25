@@ -41,3 +41,77 @@ export const dieDefSchema = z.strictObject({
   notes: z.string().optional(),
 })
 export type DieDef = z.infer<typeof dieDefSchema>
+
+/**
+ * The seven poker hands, a closed set: core has one detector per id (src/core/hands.ts), so a
+ * new hand is a core change as well as a content row. Order here is weakest to strongest; the
+ * table's `base` decides which hand counts as best when a roll matches several.
+ */
+export const comboIdSchema = z.enum(['pair', 'two_pair', 'three_kind', 'straight', 'full_house', 'four_kind', 'five_kind'])
+export type ComboId = z.infer<typeof comboIdSchema>
+export const COMBO_IDS: readonly ComboId[] = comboIdSchema.options
+
+/** One poker hand (GDD section 5, Poker-hand combo row; docs/plans/active/m3-game.md section 1). */
+export const comboDefSchema = z.strictObject({
+  id: comboIdSchema,
+  name: z.string().min(1),
+  /** Points multiplier at level 0. Upgrades add rules.combo.step of it per level. */
+  base: z.number().gt(1),
+  notes: z.string().optional(),
+})
+export type ComboDef = z.infer<typeof comboDefSchema>
+
+export const charmRaritySchema = z.enum(['common', 'rare', 'epic'])
+export type CharmRarity = z.infer<typeof charmRaritySchema>
+
+/**
+ * What a charm changes. `points` multiplies every roll, `die:<id>` multiplies that die's output,
+ * `combo` multiplies the combo multiplier of any hand, `autoroll` multiplies the auto-roll
+ * interval (below 1 is faster), `face_cap` adds to the face cap and `draft_growth` adds to the
+ * draft requirement growth (negative softens it).
+ */
+export const charmTargetSchema = z.union([
+  z.enum(['points', 'combo', 'autoroll', 'face_cap', 'draft_growth']),
+  z.templateLiteral(['die:', idSchema]),
+])
+export type CharmTarget = z.infer<typeof charmTargetSchema>
+
+export const charmEffectSchema = z.strictObject({
+  target: charmTargetSchema,
+  op: z.enum(['add', 'mul']),
+  value: z.number(),
+})
+export type CharmEffect = z.infer<typeof charmEffectSchema>
+
+/** One draftable charm (docs/plans/active/m3-game.md section 4; GDD section 5, Draft picks row). */
+export const charmDefSchema = z.strictObject({
+  id: idSchema,
+  name: z.string().min(1),
+  flavour: z.string().min(1),
+  rarity: charmRaritySchema,
+  effect: charmEffectSchema,
+  notes: z.string().optional(),
+})
+export type CharmDef = z.infer<typeof charmDefSchema>
+
+/** When a trophy is earned. Every kind reads one field of the state; core evaluates them in src/core/trophies.ts. */
+export const trophyConditionSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('rolls'), count: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal('dieOwned'), id: idSchema }),
+  z.strictObject({ kind: z.literal('ascensions'), count: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal('charms'), count: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal('prestiges'), count: z.number().int().positive() }),
+  z.strictObject({ kind: z.literal('hand'), combo: comboIdSchema }),
+  z.strictObject({ kind: z.literal('totalEarned'), amount: z.number().positive() }),
+])
+export type TrophyCondition = z.infer<typeof trophyConditionSchema>
+
+/** One achievement (GDD section 10; docs/plans/active/m3-game.md section 6). Each held trophy multiplies points by rules.trophy.multiplier. */
+export const trophyDefSchema = z.strictObject({
+  id: idSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  condition: trophyConditionSchema,
+  notes: z.string().optional(),
+})
+export type TrophyDef = z.infer<typeof trophyDefSchema>

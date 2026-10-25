@@ -4,9 +4,10 @@
 // the export string is read at open time.
 import { useRef, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
-import { formatSaveStatus, selectLastSavedAt, selectPersisted, selectReduceMotion, selectSaveError, selectTheme } from '@/app/selectors'
+import { formatSaveStatus, selectLastSavedAt, selectPersisted, selectReduceMotion, selectSaveError, selectSound, selectTheme } from '@/app/selectors'
+import { selectAutoAscend } from '@/app/selectors.meta'
 import { decodeExport, exportString, importString, resetGame } from '@/app/storage'
-import { setSettings, useGameStore } from '@/app/store'
+import { send, setSettings, useGameStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -33,7 +34,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       >
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Theme and motion, your save as text, and a fresh start.</DialogDescription>
+          <DialogDescription>Theme, motion and sound, your save as text, and a fresh start.</DialogDescription>
         </DialogHeader>
         <SettingsBody onClose={() => onOpenChange(false)} />
         <DialogFooter>
@@ -66,6 +67,8 @@ function SectionTitle({ id, children }: { readonly id: string; readonly children
 function SettingsBody({ onClose }: { readonly onClose: () => void }) {
   const theme = useGameStore(selectTheme)
   const reduceMotion = useGameStore(selectReduceMotion)
+  const sound = useGameStore(selectSound)
+  const autoAscend = useGameStore(selectAutoAscend)
   const lastSavedAt = useGameStore(selectLastSavedAt)
   const persisted = useGameStore(selectPersisted)
   const saveError = useGameStore(selectSaveError)
@@ -163,6 +166,35 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
             data-testid="reduce-motion-switch"
             checked={reduceMotion}
             onCheckedChange={(checked) => setSettings({ reduceMotion: checked })}
+          />
+        </label>
+        <label htmlFor="sound" className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation">
+          <span>Sound</span>
+          <Switch
+            id="sound"
+            aria-label="Sound"
+            data-testid="sound-switch"
+            checked={sound}
+            onCheckedChange={(checked) => setSettings({ sound: checked })}
+          />
+        </label>
+      </section>
+
+      <Separator />
+
+      <section aria-labelledby="settings-game" className="flex flex-col gap-2">
+        <SectionTitle id="settings-game">Game</SectionTitle>
+        <label htmlFor="auto-ascend" className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation">
+          <span className="flex flex-col">
+            <span>Auto-ascend</span>
+            <span className="text-xs text-muted-foreground">A die at level 100 ascends on its own: level 1 again, output x100.</span>
+          </span>
+          <Switch
+            id="auto-ascend"
+            aria-label="Auto-ascend"
+            data-testid="auto-ascend-switch"
+            checked={autoAscend}
+            onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}
           />
         </label>
       </section>

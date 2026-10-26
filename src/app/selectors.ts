@@ -56,19 +56,40 @@ export function formatSaveStatus(save: Pick<SaveStatus, 'lastSavedAt' | 'persist
 }
 
 /**
- * Whether at least one whole tick of the absence was settled at expected value instead of rolled.
- * Nearly every absence leaves a sub-tick remainder (elapsed is rarely a multiple of tickMs); that
- * is rounding, not an estimate worth telling the player about.
+ * Whether enough of the absence was settled at expected value to be worth saying so: at least one
+ * auto-roll interval, so at least one whole roll was estimated rather than rolled. Nearly every
+ * absence leaves a sub-tick remainder (elapsed is rarely a multiple of tickMs), and a remainder
+ * shorter than a roll is rounding, not an estimate the player would notice. intervalMs is the
+ * game's current auto-roll interval; the tick size is the floor when it is missing or smaller.
  */
-export function isEstimated(o: OfflineSummary): boolean {
-  return o.estimatedMs >= TICK_MS
+export function isEstimated(o: OfflineSummary, intervalMs: number = TICK_MS): boolean {
+  return o.estimatedMs >= Math.max(TICK_MS, intervalMs)
 }
 
 /** "Away 12 min: 144 rolls, 1.2K points, partly estimated". Empty when there is no summary. */
-export function formatOffline(o: OfflineSummary | null): string {
+export function formatOffline(o: OfflineSummary | null, intervalMs: number = TICK_MS): string {
   if (o === null) return ''
-  const estimated = isEstimated(o) ? ', partly estimated' : ''
+  const estimated = isEstimated(o, intervalMs) ? ', partly estimated' : ''
   return `Away ${formatDuration(o.elapsedMs)}: ${o.rolls} rolls, ${N.format(o.gained)} points${estimated}`
+}
+
+const DAY_MS = 24 * HOUR_MS
+
+function twoDigits(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`
+}
+
+/** "2026-10-25 14:03" in local time, hand rolled so da-DK and en-US read the same (no Intl). */
+export function formatDateTime(at: number): string {
+  const d = new Date(at)
+  return `${d.getFullYear()}-${twoDigits(d.getMonth() + 1)}-${twoDigits(d.getDate())} ${twoDigits(d.getHours())}:${twoDigits(d.getMinutes())}`
+}
+
+/** When a stored copy was written: "12 min ago" inside a day, the date and time beyond it, "unknown time" without a stamp. */
+export function formatBackupTime(savedAt: number, now: number): string {
+  if (savedAt <= 0) return 'unknown time'
+  if (now - savedAt < DAY_MS) return formatAgo(savedAt, now)
+  return formatDateTime(savedAt)
 }
 
 /** What a player must do for an unlock condition, as a clause: "own Second Die", "level First Die to 2". */
@@ -109,15 +130,17 @@ export const selectNextUnlockText = (s: StoreState): string => {
   return `${next.def.name} unlocks: ${describeUnlock(next.unlock)}`
 }
 
-// Offline summary
+// Offline summary. The "partly estimated" note is measured against the game's own auto-roll
+// interval: shorter estimates are a fraction of one roll.
 export const selectHasOffline = (s: StoreState): boolean => s.ui.offline !== null
-export const selectOfflineText = (s: StoreState): string => formatOffline(s.ui.offline)
+export const selectOfflineText = (s: StoreState): string => formatOffline(s.ui.offline, s.game.autoRoll.intervalMs)
 export const selectOfflineAwayText = (s: StoreState): string =>
   s.ui.offline === null ? '' : formatDuration(s.ui.offline.elapsedMs)
 export const selectOfflineRolls = (s: StoreState): number => s.ui.offline?.rolls ?? 0
 export const selectOfflineGainedText = (s: StoreState): string =>
   s.ui.offline === null ? '' : N.format(s.ui.offline.gained)
-export const selectOfflineEstimated = (s: StoreState): boolean => s.ui.offline !== null && isEstimated(s.ui.offline)
+export const selectOfflineEstimated = (s: StoreState): boolean =>
+  s.ui.offline !== null && isEstimated(s.ui.offline, s.game.autoRoll.intervalMs)
 
 // App state
 export const selectBooted = (s: StoreState): boolean => s.ui.booted

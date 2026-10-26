@@ -1,13 +1,13 @@
-// The Stats panel: lifetime rolls, best roll, time played, luck resets, points earned, and the
+// The Stats panel: lifetime rolls, best roll, time played, luck resets, lifetime luck, points earned, and the
 // hands seen (rolls whose best hand was each combo). Every number arrives formatted or as a count.
 import { useMemo } from 'react'
 import { content, type ComboId } from '@/content'
 import { selectRolls } from '@/app/selectors'
+import { selectLuckTotal } from '@/app/selectors.luck'
 import {
   selectBestRollText,
   selectHandCount,
   selectHandsSeenTotal,
-  selectLuck,
   selectPlayTimeText,
   selectPrestiges,
   selectRunEarnedText,
@@ -47,7 +47,7 @@ export function StatsPanel() {
   const bestRoll = useGameStore(selectBestRollText)
   const played = useGameStore(selectPlayTimeText)
   const prestiges = useGameStore(selectPrestiges)
-  const luck = useGameStore(selectLuck)
+  const luckTotal = useGameStore(selectLuckTotal)
   const totalEarned = useGameStore(selectTotalEarnedText)
   const runEarned = useGameStore(selectRunEarnedText)
   const handsTotal = useGameStore(selectHandsSeenTotal)
@@ -61,7 +61,7 @@ export function StatsPanel() {
           <Tile label="Best roll" value={bestRoll} testId="stat-best-roll" />
           <Tile label="Time played" value={played} testId="stat-time" />
           <Tile label="Luck resets" value={prestiges} testId="stat-prestiges" />
-          <Tile label="Luck" value={luck} />
+          <Tile label="Lifetime luck" value={luckTotal} testId="stat-luck" />
           <Tile label="Points earned" value={totalEarned} />
         </dl>
         <p className="text-xs text-muted-foreground">

@@ -1,10 +1,11 @@
 // Recovery candidates against an in-memory saveStore: what each stored copy is described as,
-// the order the dialog lists them in, and restoring one into the store. Node environment.
+// the order the dialog lists them in, restoring one into the store, and the Settings restore that
+// sets the running game aside first. Node environment.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createInitialState, dispatch, serializeState, type GameState } from '@/core'
+import { createInitialState, dispatch, parseSave, serializeState, type GameState } from '@/core'
 import { memorySaveStore, setPlatform, webPlatform } from './platform'
-import { describeCandidate, kindOfKey, listRecoveryCandidates, restoreFromKey } from './recovery'
-import { QUARANTINE_PREFIX, REPLACED_PREFIX, SAVE_KEY, backupKey } from './storage'
+import { describeCandidate, kindOfKey, listRecoveryCandidates, restoreBackup, restoreFromKey } from './recovery'
+import { QUARANTINE_PREFIX, REPLACED_PREFIX, SAVE_KEY, backupKey, readEnvelope } from './storage'
 import { replaceGame, store } from './store'
 
 let memory: ReturnType<typeof memorySaveStore>
@@ -102,5 +103,47 @@ describe('restoreFromKey', () => {
       if (!result.ok) expect(result.reason.length).toBeGreaterThan(20)
     }
     expect(store.getState().game).toBe(before)
+  })
+})
+
+describe('restoreBackup', () => {
+  it('sets the running game aside, loads the copy, credits the time since its stamp and saves', async () => {
+    const now = 1_700_000_000_000
+    const current = played(31, 3)
+    replaceGame(current)
+    const backup = played(32, 8)
+    memory.entries.set(backupKey(20), envelope(now - 1_200_000, backup))
+
+    const result = await restoreBackup(backupKey(20), now)
+    expect(result).toEqual({ ok: true, savedAt: now - 1_200_000, creditedMs: 1_200_000 })
+
+    // The copy is in the store with the 20 minutes credited on top (no auto-roll yet, so only time moves).
+    const { game } = store.getState()
+    expect(game.seed).toBe(backup.seed)
+    expect(game.rolls).toBe(8)
+    expect(game.playMs).toBe(backup.playMs + 1_200_000)
+
+    // The game that was running is set aside under a replaced key, unchanged.
+    const replacedKeys = [...memory.entries.keys()].filter((key) => key.startsWith(REPLACED_PREFIX))
+    expect(replacedKeys).toHaveLength(1)
+    const setAside = readEnvelope(memory.entries.get(replacedKeys[0] ?? '') ?? '')
+    expect(setAside?.payload).toBe(serializeState(current))
+
+    // The main save holds the restored game.
+    const saved = readEnvelope(memory.entries.get(SAVE_KEY) ?? '')
+    expect(saved).not.toBeNull()
+    const parsed = saved === null ? null : parseSave(saved.payload)
+    expect(parsed?.ok && parsed.state.rolls).toBe(8)
+    expect(store.getState().ui.offline).toBeNull()
+  })
+
+  it('leaves the running game in place when the copy cannot be read', async () => {
+    const current = played(33, 2)
+    replaceGame(current)
+    memory.entries.set(backupKey(5), 'junk')
+    const result = await restoreBackup(backupKey(5))
+    expect(result.ok).toBe(false)
+    expect(store.getState().game).toBe(current)
+    expect(memory.entries.has(SAVE_KEY)).toBe(false)
   })
 })

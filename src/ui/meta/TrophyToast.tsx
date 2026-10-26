@@ -1,12 +1,14 @@
-// A bottom toast for the latest trophy: slams in when newTrophy is set, plays the trophy sound,
-// and clears itself (clearNewTrophy) after TOAST_MS or on tap. The last trophy shown stays in
-// local state so the toast can fade out after the store has already cleared it. Below lg it sits
-// above the fixed bottom tab bar (56 px plus the safe area) instead of on top of it.
+// A bottom toast for newly earned trophies, one at a time. The store queues every trophy a state
+// change awards (ui.trophyQueue); the toast shows the head, plays the trophy sound, and shifts it
+// off after TOAST_MS or on tap, so two trophies from one roll are shown one after another. The
+// store clears the core's newTrophy when the queue drains. The last trophy shown stays in local
+// state so the toast can fade out after the queue is already empty. Below lg it sits above the
+// fixed bottom tab bar (56 px plus the safe area) instead of on top of it.
 import { useEffect, useState } from 'react'
 import { TrophyIcon } from 'lucide-react'
 import { play } from '@/app/audio'
-import { selectNewTrophyDescription, selectNewTrophyId, selectNewTrophyName } from '@/app/selectors.meta'
-import { send, useGameStore } from '@/app/store'
+import { selectTrophyToastDescription, selectTrophyToastId, selectTrophyToastName } from '@/app/selectors.meta'
+import { shiftTrophy, useGameStore } from '@/app/store'
 import { cn } from '@/lib/utils'
 
 export const TOAST_MS = 3000
@@ -19,18 +21,18 @@ interface Shown {
 }
 
 export function TrophyToast() {
-  const id = useGameStore(selectNewTrophyId)
-  const name = useGameStore(selectNewTrophyName)
-  const description = useGameStore(selectNewTrophyDescription)
+  const id = useGameStore(selectTrophyToastId)
+  const name = useGameStore(selectTrophyToastName)
+  const description = useGameStore(selectTrophyToastDescription)
   const [shown, setShown] = useState<Shown | null>(null)
   const visible = id !== null
-  // State from the previous render: keep the last trophy while the store's newTrophy is already null.
+  // State from the previous render: keep the last trophy while the queue is already empty.
   if (id !== null && (shown === null || shown.id !== id)) setShown({ id, name, description })
 
   useEffect(() => {
     if (id === null) return
     play('trophy')
-    const timer = setTimeout(() => send({ type: 'clearNewTrophy' }), TOAST_MS)
+    const timer = setTimeout(shiftTrophy, TOAST_MS)
     return () => clearTimeout(timer)
   }, [id])
 
@@ -44,11 +46,12 @@ export function TrophyToast() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 lg:bottom-[max(1rem,env(safe-area-inset-bottom))]">
       <button
+        key={shown.id}
         type="button"
         data-testid="trophy-toast"
         role="status"
         aria-live="polite"
-        onClick={() => send({ type: 'clearNewTrophy' })}
+        onClick={shiftTrophy}
         className={cn(
           'pointer-events-auto flex max-w-sm min-h-11 items-center gap-3 rounded-xl bg-popover px-4 py-3 text-left text-popover-foreground shadow-soft ring-1 ring-amber/50 glow-amber transition-opacity duration-200 touch-manipulation',
           visible ? 'slam-in opacity-100' : 'opacity-0',

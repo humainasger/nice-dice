@@ -1,11 +1,26 @@
-// The Luck tab: the luck held and its multiplier, a locked state with the threshold and a progress
-// bar, the preview "Reset for +N luck (x1.N points)", what resets and what stays, and a confirm
-// dialog. A prestige plays the luck sound, shakes the panel and bursts cool particles.
-import { useState } from 'react'
+// The Luck tab as the luck shop: spendable and lifetime luck with the multiplier, the reset
+// preview with the log formula (locked: the threshold and a progress bar) and its confirm dialog,
+// then one row per luck upgrade with level pips, the effect line built from the def, the next cost
+// and a Buy button. Before the first luck the rows show greyed with "Earn luck to spend here". A
+// prestige plays the luck sound, shakes the panel and bursts cool particles; a buy plays the luck
+// sound quietly and bursts the row.
+import { useMemo, useState } from 'react'
 import { CloverIcon } from 'lucide-react'
+import { content, type LuckUpgradeId } from '@/content'
 import { play, unlockAudio } from '@/app/audio'
 import {
-  selectLuck,
+  selectAutoLevelAvailable,
+  selectFirstDieName,
+  selectHeadStartLevel,
+  selectLuckPerDecade,
+  selectLuckShopOpen,
+  selectLuckSpendable,
+  selectLuckSpent,
+  selectLuckTotal,
+  selectLuckUpgradeRow,
+  selectMemoryKept,
+} from '@/app/selectors.luck'
+import {
   selectLuckAfterResetText,
   selectLuckMultiplierText,
   selectLuckOnReset,
@@ -15,14 +30,12 @@ import {
   selectPrestiges,
   selectRunEarnedText,
 } from '@/app/selectors.meta'
-import { send, useGameStore } from '@/app/store'
+import { send, useGameStore, useShallow } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { Particles, ScreenShake } from '@/ui/fx'
 import { Bar, PanelCard, PanelTitle } from './parts'
-
-const RESETS = ['Points', 'Dice: back to the first die at level 1, faces 1 to 6, no ascensions', 'Hand upgrades', 'Charms and draft progress', 'This run’s earnings'] as const
-const STAYS = ['Luck and its multiplier', 'Trophies', 'Lifetime stats', 'Settings and auto-roll'] as const
 
 function PlainList({ title, items, tone }: { readonly title: string; readonly items: readonly string[]; readonly tone: 'resets' | 'stays' }) {
   return (
@@ -44,8 +57,73 @@ function PlainList({ title, items, tone }: { readonly title: string; readonly it
   )
 }
 
+/** Level as pips: one dot per level, the bought ones cool. Up to ten across. */
+function Pips({ level, max, name }: { readonly level: number; readonly max: number; readonly name: string }) {
+  return (
+    <span className="flex items-center gap-1.5" aria-label={`${name} level ${level} of ${max}`} title={`Level ${level} of ${max}`}>
+      <span className="flex items-center gap-0.5" aria-hidden="true">
+        {Array.from({ length: max }, (_, i) => (
+          <span key={i} className={cn('size-1.5 rounded-full', i < level ? 'bg-cool' : 'bg-foreground/15')} />
+        ))}
+      </span>
+      <span className="text-xs text-muted-foreground tabular" aria-hidden="true">
+        {level}/{max}
+      </span>
+    </span>
+  )
+}
+
+/** One upgrade: name, pips, description, the effect line, the next cost and Buy. The burst fires on the level. */
+function UpgradeRow({ id, shopOpen }: { readonly id: LuckUpgradeId; readonly shopOpen: boolean }) {
+  const selector = useMemo(() => selectLuckUpgradeRow(id), [id])
+  const v = useGameStore(useShallow(selector))
+  const canBuy = shopOpen && v.affordable && !v.maxed
+
+  const buy = (): void => {
+    unlockAudio()
+    send({ type: 'buyLuckUpgrade', id })
+    play('luck', { rank: 1 })
+  }
+
+  return (
+    <li data-testid={`luck-upgrade-${id}`} className={cn('relative flex items-start gap-3 py-3', !shopOpen && 'opacity-60')}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="font-medium">{v.name}</p>
+          <Pips level={v.level} max={v.maxLevel} name={v.name} />
+        </div>
+        <p className="text-xs text-muted-foreground">{v.description}</p>
+        <p className={cn('text-sm', v.level > 0 ? 'font-medium text-cool-text' : 'text-muted-foreground')}>{v.effectText}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {v.maxed ? (
+          <span className="text-xs text-muted-foreground">Maxed</span>
+        ) : (
+          <span className={cn('text-xs tabular', canBuy ? 'text-cool-text' : 'text-muted-foreground')}>
+            {v.nextCost} luck
+          </span>
+        )}
+        <Button
+          data-testid={`luck-buy-${id}`}
+          variant={canBuy ? 'default' : 'outline'}
+          disabled={!canBuy}
+          onClick={buy}
+          aria-label={v.maxed ? `${v.name} is maxed` : `Buy ${v.name} for ${v.nextCost} luck`}
+          className={cn('min-h-11 min-w-16 touch-manipulation', canBuy && 'glow-cool')}
+        >
+          {v.maxed ? 'Done' : 'Buy'}
+        </Button>
+      </div>
+      <Particles trigger={v.level} kind="cool" count={16} />
+    </li>
+  )
+}
+
 export function LuckPanel() {
-  const luck = useGameStore(selectLuck)
+  const luck = useGameStore(selectLuckSpendable)
+  const luckTotal = useGameStore(selectLuckTotal)
+  const luckSpent = useGameStore(selectLuckSpent)
+  const shopOpen = useGameStore(selectLuckShopOpen)
   const prestiges = useGameStore(selectPrestiges)
   const multiplier = useGameStore(selectLuckMultiplierText)
   const unlocked = useGameStore(selectLuckUnlocked)
@@ -54,8 +132,13 @@ export function LuckPanel() {
   const threshold = useGameStore(selectLuckThresholdText)
   const runEarned = useGameStore(selectRunEarnedText)
   const percent = useGameStore(selectLuckProgressPercent)
+  const perDecade = useGameStore(selectLuckPerDecade)
+  const memoryKept = useGameStore(selectMemoryKept)
+  const headStart = useGameStore(selectHeadStartLevel)
+  const firstDie = useGameStore(selectFirstDieName)
+  const autoLevelOwned = useGameStore(selectAutoLevelAvailable)
   /** The numbers the confirm dialog shows, frozen at open so the fade-out does not flip to "+0". */
-  const [confirm, setConfirm] = useState<{ readonly onReset: number; readonly luckAfter: number; readonly afterReset: string } | null>(null)
+  const [confirm, setConfirm] = useState<{ readonly onReset: number; readonly luckAfter: number; readonly totalAfter: number; readonly afterReset: string } | null>(null)
 
   const prestige = (): void => {
     unlockAudio()
@@ -64,19 +147,45 @@ export function LuckPanel() {
     setConfirm(null)
   }
 
+  const resets: readonly string[] = [
+    'Points',
+    `Dice: back to ${firstDie} at level ${headStart}, faces 1 to 6, no ascensions`,
+    'Hand upgrades',
+    memoryKept > 0 ? `Charms beyond the ${memoryKept} Memory keeps, and draft progress` : 'Charms and draft progress',
+    'This run’s earnings',
+  ]
+  const stays: readonly string[] = [
+    'Lifetime luck and its multiplier',
+    'Luck upgrades and unspent luck',
+    'Trophies',
+    'Lifetime stats',
+    autoLevelOwned ? 'Settings, auto-roll and auto-level' : 'Settings and auto-roll',
+  ]
+  const shown = confirm ?? { onReset, luckAfter: luck + onReset, totalAfter: luckTotal + onReset, afterReset }
+
   return (
     <ScreenShake trigger={prestiges}>
       <div data-testid="luck-panel" className="flex flex-col gap-4">
         <PanelCard className="relative flex flex-col gap-1">
           <PanelTitle>Luck</PanelTitle>
           <div className="flex items-end justify-between gap-3">
-            <p className="flex items-center gap-2">
-              <CloverIcon className="size-7 text-cool-text" aria-hidden="true" />
-              <span data-testid="luck-value" className="text-4xl font-semibold tracking-tight text-cool-text tabular">
-                {luck}
-              </span>
-            </p>
+            <div className="flex flex-col">
+              <p className="flex items-center gap-2">
+                <CloverIcon className="size-7 text-cool-text" aria-hidden="true" />
+                <span data-testid="luck-value" className="text-4xl font-semibold tracking-tight text-cool-text tabular">
+                  <span data-testid="luck-spendable">{luck}</span>
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                to spend{luckSpent > 0 && <span className="tabular">, {luckSpent} spent</span>}
+              </p>
+            </div>
             <p className="text-right text-sm text-muted-foreground">
+              <span data-testid="luck-total" className="font-medium text-foreground tabular">
+                {luckTotal}
+              </span>{' '}
+              lifetime luck
+              <br />
               <span className="font-medium text-foreground tabular">x{multiplier}</span> points
               <br />
               <span className="tabular">{prestiges}</span> {prestiges === 1 ? 'reset' : 'resets'} so far
@@ -95,11 +204,13 @@ export function LuckPanel() {
               </span>
             </p>
             <p className="text-sm text-muted-foreground">
-              This run earned <span className="tabular">{runEarned}</span>. Luck grows with the square root of that, so pushing on pays, but each reset also makes the next run faster.
+              This run earned <span className="tabular">{runEarned}</span>. Every tenfold past <span className="tabular">{threshold}</span> is worth{' '}
+              <span className="tabular">{perDecade}</span> more luck, so pushing on pays, but each reset also makes the next run faster. The
+              multiplier counts every luck you ever earned, spent or not.
             </p>
             <Button
               data-testid="luck-reset-button"
-              onClick={() => setConfirm({ onReset, luckAfter: luck + onReset, afterReset })}
+              onClick={() => setConfirm({ onReset, luckAfter: luck + onReset, totalAfter: luckTotal + onReset, afterReset })}
               className="min-h-11 self-start touch-manipulation"
             >
               Reset for +{onReset} luck
@@ -113,24 +224,47 @@ export function LuckPanel() {
             </div>
             <Bar value={percent} tone="cool" label="Progress to luck" />
             <p className="text-sm text-muted-foreground">
-              <span className="tabular">{runEarned}</span> of <span className="tabular">{threshold}</span> this run. Once there, you can reset the table for luck: a permanent points multiplier that survives every reset.
+              <span className="tabular">{runEarned}</span> of <span className="tabular">{threshold}</span> this run. Once there, you can reset the table for
+              luck: a permanent points multiplier that survives every reset, and a currency for the upgrades below. Every tenfold past the threshold
+              is worth <span className="tabular">{perDecade}</span> more luck.
             </p>
           </PanelCard>
         )}
 
+        <PanelCard className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <PanelTitle>Luck shop</PanelTitle>
+            {shopOpen ? (
+              <span className="text-xs text-muted-foreground">
+                Permanent, paid in luck. <span className="tabular">{luck}</span> to spend.
+              </span>
+            ) : (
+              <span data-testid="luck-shop-locked" className="text-xs font-medium text-muted-foreground">
+                Earn luck to spend here
+              </span>
+            )}
+          </div>
+          <ul data-testid="luck-shop-list" className="divide-y divide-border/60">
+            {content.luckUpgrades.map((def) => (
+              <UpgradeRow key={def.id} id={def.id} shopOpen={shopOpen} />
+            ))}
+          </ul>
+        </PanelCard>
+
         <PanelCard className="grid gap-4 sm:grid-cols-2">
-          <PlainList title="Resets" items={RESETS} tone="resets" />
-          <PlainList title="Stays" items={STAYS} tone="stays" />
+          <PlainList title="Resets" items={resets} tone="resets" />
+          <PlainList title="Stays" items={stays} tone="stays" />
         </PanelCard>
       </div>
 
       <Dialog open={confirm !== null} onOpenChange={(next) => !next && setConfirm(null)}>
         <DialogContent data-testid="luck-confirm-dialog" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Reset for +{confirm?.onReset ?? onReset} luck?</DialogTitle>
+            <DialogTitle>Reset for +{shown.onReset} luck?</DialogTitle>
             <DialogDescription>
-              Points, dice, hand upgrades and charms go. Luck becomes {confirm?.luckAfter ?? luck + onReset}, trophies and stats stay, and every roll from
-              now on pays x{confirm?.afterReset ?? afterReset}.
+              Points, dice, hand upgrades and charms go{memoryKept > 0 ? ` (Memory keeps the ${memoryKept} rarest)` : ''}. Spendable luck becomes{' '}
+              {shown.luckAfter}, lifetime luck {shown.totalAfter}; trophies, stats and luck upgrades stay, and every roll from now on pays x
+              {shown.afterReset}.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

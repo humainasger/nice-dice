@@ -1,7 +1,8 @@
 // The rules table: global tunables that belong to no single die. Auto-roll baseline and unlock
 // (GDD section 6, Roll row), the offline policy (GDD section 9) and the M3 systems from
 // docs/plans/active/m3-game.md: ascension (GDD section 4 and 5), combos (section 5), face editing
-// (section 5 and 6), the charm draft (section 5), luck (section 7) and trophies (section 10).
+// (section 5 and 6), the charm draft (section 5), luck (section 7, with the M4 log formula and the
+// auto-level cadence from docs/plans/active/m4-luck.md) and trophies (section 10).
 // Plain numbers only; core reads them through src/core/defs.ts. The schema lives here because the
 // table is one object, not rows with ids like dice.
 import { z } from 'zod'
@@ -35,9 +36,11 @@ export const rulesSchema = z.strictObject({
      * Level cost multiplier per ascension, compounding, so a die's cost curve does not restart from
      * baseCost each cycle. Without it an ascension cycle costs the same ~250K every time while output
      * goes x100 and the game runs away within minutes of the first ascension; at 100 (a cycle costs
-     * what it pays) charms and luck still tip it into a runaway inside the first hour. 300 keeps the
+     * what it pays) charms and luck still tip it into a runaway inside the first hour. 300 kept the
      * first ascension at about 14 minutes and the first luck inside its window (docs/BALANCE_LOG.md,
-     * 2026-10-25). GDD section 4: the level cost row needs this factor, TODO owner.
+     * 2026-10-25); 400 since 2026-10-26 (M4): each ascension now costs four times what it pays, which
+     * caps a 20-minute run at about 12 ascensions per die instead of 15 to 21 and puts the 8 h
+     * lifetime total inside its 1e25 to 1e45 window (docs/BALANCE_LOG.md). GDD section 4, level cost rule.
      */
     costMultiplier: z.number().min(1),
   }),
@@ -60,7 +63,11 @@ export const rulesSchema = z.strictObject({
     unlockLevel: z.number().int().positive(),
   }),
   draft: z.strictObject({
-    /** Draft requirement = ceil(growth ^ charmsTaken) ascensions. GDD section 5: "requirement growth 1.15 baseline". */
+    /**
+     * Draft requirement = ceil(growth ^ charmsTaken) ascensions. GDD section 5: Idle Dice baseline
+     * 1.15; 1.3 since 2026-10-26 (M4), the top of the brief's range, so a run holds about 14 charms
+     * at 8 h instead of 20 (docs/BALANCE_LOG.md). The first draft still costs one ascension.
+     */
     growth: z.number().gt(1),
     /** Charms offered per draft. m3-game.md section 4: three. */
     offerSize: z.number().int().positive(),
@@ -79,8 +86,16 @@ export const rulesSchema = z.strictObject({
      * 16 min against a 30 to 90 minute window (docs/BALANCE_LOG.md).
      */
     threshold: z.number().positive(),
-    /** Points multiplier is 1 + perPoint x luck. GDD section 7 formula; m3-game.md: 0.1. */
+    /** Points multiplier is 1 + perPoint x luckTotal (lifetime luck, spent or not). GDD section 7 formula; m3-game.md: 0.1. */
     perPoint: z.number().positive(),
+    /**
+     * Luck on reset = floor(perDecade x log10(totalEarnedRun / threshold)) + 1 once the run has
+     * reached the threshold. A log curve so luck cannot run away with the run total. m4-luck.md
+     * section 1: 10 to start, tuned by the sim (docs/BALANCE_LOG.md). GDD section 7 formula.
+     */
+    perDecade: z.number().positive(),
+    /** Auto-level (the steady_hands upgrade) buys once per this much simulated time. m4-luck.md section 2: every simulated second. */
+    autoLevelEveryMs: z.number().int().positive(),
   }),
   trophy: z.strictObject({
     /** Points multiplier per held trophy, compounding. GDD section 10; m3-game.md section 6: 1.02. */
@@ -104,7 +119,7 @@ export const rules: RulesDef = {
   ascension: {
     level: 100,
     multiplier: 100,
-    costMultiplier: 300,
+    costMultiplier: 400,
   },
   combo: {
     upgradeCost: 50,
@@ -118,13 +133,15 @@ export const rules: RulesDef = {
     unlockLevel: 10,
   },
   draft: {
-    growth: 1.15,
+    growth: 1.3,
     offerSize: 3,
     rarityWeights: { common: 6, rare: 3, epic: 1 },
   },
   luck: {
     threshold: 10000000000,
     perPoint: 0.1,
+    perDecade: 10,
+    autoLevelEveryMs: 1000,
   },
   trophy: {
     multiplier: 1.02,

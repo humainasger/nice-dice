@@ -1,14 +1,16 @@
-// The charm draft: a shadcn Dialog that opens while draft.offer is set, three charm cards side by
-// side (stacked on phones), one free reroll. A pick dispatches pickCharm, plays the charm sound and
-// bursts cool particles on the chosen card; the dialog holds the offer on screen for PICK_HOLD_MS
-// so the burst is seen, then closes (or shows the next offer, if the bar filled twice).
+// The charm draft: a shadcn Dialog that opens while draft.offer is set and the player has not put
+// it aside, three charm cards side by side (stacked on phones), one free reroll and "Decide later".
+// A pick dispatches pickCharm, plays the charm sound and bursts cool particles on the chosen card;
+// the dialog holds the offer on screen for PICK_HOLD_MS so the burst is seen, then closes (or
+// shows the next offer, if the bar filled twice). "Decide later" (and Escape) set ui.draftDismissed;
+// the Charms tab reopens the draft, and a changed offer reopens it on its own.
 import { useEffect, useState } from 'react'
 import { ShuffleIcon } from 'lucide-react'
 import type { Id } from '@/content'
 import { charmDef } from '@/core'
 import { play, unlockAudio } from '@/app/audio'
-import { selectDraftCanReroll, selectDraftOfferIds, selectDraftOpen, selectDraftTaken } from '@/app/selectors.meta'
-import { send, useGameStore, useShallow } from '@/app/store'
+import { selectDraftCanReroll, selectDraftDialogOpen, selectDraftOfferIds, selectDraftTaken } from '@/app/selectors.meta'
+import { dismissDraft, send, useGameStore, useShallow } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CharmCard } from './CharmCard'
@@ -22,7 +24,7 @@ interface Celebration {
 }
 
 export function DraftDialog() {
-  const open = useGameStore(selectDraftOpen)
+  const open = useGameStore(selectDraftDialogOpen)
   const offerIds = useGameStore(useShallow(selectDraftOfferIds))
   const canReroll = useGameStore(selectDraftCanReroll)
   const taken = useGameStore(selectDraftTaken)
@@ -52,12 +54,21 @@ export function DraftDialog() {
     send({ type: 'rerollDraft' })
   }
 
+  const later = (): void => {
+    if (celebrating) return
+    dismissDraft()
+  }
+
   return (
-    <Dialog open={open || celebrating}>
+    <Dialog
+      open={open || celebrating}
+      onOpenChange={(next) => {
+        if (!next) later()
+      }}
+    >
       <DialogContent
         data-testid="draft-dialog"
         showCloseButton={false}
-        onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl"
       >
@@ -88,10 +99,15 @@ export function DraftDialog() {
 
         <DialogFooter className="sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">{canReroll ? 'Not these? One reroll is free.' : 'The reroll is spent for this draft.'}</p>
-          <Button variant="outline" data-testid="draft-reroll" disabled={!canReroll || celebrating} onClick={reroll} className="min-h-11 touch-manipulation">
-            <ShuffleIcon />
-            Reroll
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" data-testid="draft-later" disabled={celebrating} onClick={later} className="min-h-11 touch-manipulation">
+              Decide later
+            </Button>
+            <Button variant="outline" data-testid="draft-reroll" disabled={!canReroll || celebrating} onClick={reroll} className="min-h-11 touch-manipulation">
+              <ShuffleIcon />
+              Reroll
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

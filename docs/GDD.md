@@ -79,24 +79,56 @@ Purpose: one row per die with base cost, cost growth, output and unlock. These r
 
 Ids and values match `src/content/dice.ts` as of 2026-10-25. All five dice have `sides: 6`. `src/content/content.test.ts` pins these baseline values, so a change here changes that test in the same pull request.
 
-Baseline rules carried from Idle Dice: level cost = base cost x growth ^ level. Ascension at level 100 resets the level and multiplies output by 100 (TODO owner, M3). Output per roll = face value x output multiplier x level scaling (formula TODO owner, M1).
+Shipped rules (M1 and M3, cost multiplier retuned in M4; the owner delegated the M3 and M4 edits of this section, `docs/plans/active/m4-luck.md` section 3, 2026-10-26):
 
-TODO owner: final names (the table ships placeholders), whether unlock needs anything beyond owning the previous die, the level scaling formula, and whether a sixth die or multiplier dice ever enter (section 13 says not in v1).
+- Level cost from level L to L + 1 = `baseCost` x `costGrowth` ^ L x `rules.ascension.costMultiplier` ^ ascensions. The cost multiplier is 400 (`src/content/rules.ts`, `ascension.costMultiplier`; 300 from 2026-10-25 to 2026-10-26, see `docs/BALANCE_LOG.md`): a die's cost curve does not restart from `baseCost` after an ascension, each cycle to the cap costs 400 times the last while it pays 100 times more, so a run settles at about 12 ascensions per die instead of running away. Level 0 to 1 is buying the die at `baseCost`.
+- Ascension (`rules.ascension.level` 100, `rules.ascension.multiplier` 100): a die at level 100 stops levelling and can ascend, by hand or with auto-ascend (default on): level back to 1, output x100 per ascension compounding, faces kept, and one point of draft progress (section 5). Core: `src/core/ascend.ts`.
+- Die multiplier = `baseMultiplier` x level x 100 ^ ascensions x the die's cup charms (section 5). Output per roll = sum over owned dice of (printed face value x die multiplier), then the global multipliers of section 5. The printed face starts at 1 to 6 and face editing raises it (section 5).
+- A new run after a luck reset starts die_1 at level 1, or at 10 x the Head Start level (section 7.1), the other dice unowned.
+
+TODO owner: final names (the table ships placeholders), whether unlock needs anything beyond owning the previous die, and whether a sixth die or multiplier dice ever enter (section 13 says not in v1).
 
 ## 5. Multipliers and stacking rules
 
 Purpose: list every multiplier source and say whether sources add or multiply, so the formula in `src/core` has one unambiguous shape.
 
+Shipped formula (`src/core/formulas.ts`, `rollPoints`): points per roll = (sum over owned dice of printed face x die multiplier) x best hand multiplier x points charms x luck x trophies, where die multiplier = `baseMultiplier` x level x 100 ^ ascensions x the die's cup charms, the hand multiplier carries its upgrade level, the Card Sharp charm and the Keen Eye upgrade, and "luck" is (1 + 0.1 x lifetime luck) x Deep Pockets. The owner delegated the M3 and M4 edits of this section (`docs/plans/active/m4-luck.md` section 3, 2026-10-26).
+
 | Source | Type | Growth | Content field | Status |
 |---|---|---|---|---|
-| Die level | per die | TODO | `dice.ts` | TODO owner |
-| Ascension | per die, x100 at level 100 baseline | step | TODO | TODO owner |
-| Poker-hand combo | per roll | upgrade growth 2.35 baseline | combos table (M4) | TODO owner |
-| Face edits | per die, per face | TODO | faces table (M4) | TODO owner |
-| Draft picks | global or per die | requirement growth 1.15 baseline | draft table (M4) | TODO owner |
-| Prestige | global, additive baseline | root or log of lifetime points | prestige table (M5) | TODO owner |
+| Die level | per die | linear: `baseMultiplier` x level | `dice.ts` `baseMultiplier` | shipped M1 |
+| Ascension | per die | x100 per ascension, compounding; level costs x400 per ascension (section 4) | `rules.ts` `ascension.multiplier` 100, `ascension.costMultiplier` 400 | shipped M3; cost multiplier 300 to 400 on 2026-10-26 |
+| Poker-hand combo | per roll, best hand only, two dice or more | base 2 / 3 / 4 / 6 / 8 / 12 / 50 (pair, two pair, three of a kind, straight, full house, four of a kind, five of a kind); upgrade: base x (1 + 0.1 x level), cost 50 x 2.35 ^ level | `combos.ts` `base`; `rules.ts` `combo.upgradeCost` 50, `combo.costGrowth` 2.35, `combo.step` 0.1 | shipped M3 |
+| Face edits | per die, per face | raises the die's lowest face by 1 (first on ties), cap 12 plus 2 per Whittling Knife, cost `baseCost` x 5 x 1.6 ^ upgrades on that die, open from die level 10 | `rules.ts` `face.cap` 12, `face.costFactor` 5, `face.costGrowth` 1.6, `face.unlockLevel` 10 | shipped M3 |
+| Charms (draft picks) | global, per die, per hand, auto-roll, face cap or draft growth | draft requirement ceil(1.3 ^ charms taken this run) ascensions; three offered (plus one per Lucky Draw level), one free reroll per draft; rarity weights common 6 / rare 3 / epic 1; table below | `charms.ts`; `rules.ts` `draft.growth` 1.3, `draft.offerSize` 3, `draft.rarityWeights` | shipped M3; growth 1.15 to 1.3 and cup values on 2026-10-26 |
+| Luck (prestige) | global, additive in lifetime luck | 1 + 0.1 x lifetime luck; luck earned per reset in section 7 | `rules.ts` `luck.perPoint` 0.1 | shipped M3; lifetime luck drives it since M4 |
+| Luck upgrades | global (Deep Pockets x1.2 per level), per hand (Keen Eye +15 percent per level), auto-roll (Quick Hands x0.92 per level) and the run-shaping ones | section 7.1 | `luckUpgrades.ts` | shipped M4 |
+| Trophies | global | x1.02 per trophy held, compounding (section 10) | `rules.ts` `trophy.multiplier` 1.02 | shipped M3 |
 
-Stacking rule (proposal): sources of different kinds multiply, sources of the same kind add. TODO owner.
+Stacking rule (shipped): every source multiplies, including sources of the same kind (two Worn Felts are x1.25 x 1.25, a second ascension is another x100). The two additive effects are the face cap (+2 per Whittling Knife) and the draft growth (-0.05 per Second Helping, never below 1). The only sum is the dice themselves: the printed faces times their multipliers add up before the hand multiplier applies.
+
+Charms table, `src/content/charms.ts` (effect values of the five cups retuned 2026-10-26, `docs/BALANCE_LOG.md`):
+
+| Id | Name | Rarity | Effect (`effect`) |
+|---|---|---|---|
+| `worn_felt` | Worn Felt | common | points x1.25 |
+| `chalk_mark` | Chalk Mark | common | points x1.25 |
+| `silver_thimble` | Silver Thimble | rare | points x1.5 |
+| `golden_pip` | Golden Pip | epic | points x2 |
+| `oak_cup` | Oak Cup | common | `die_1` output x2 (was x3) |
+| `tin_cup` | Tin Cup | common | `die_2` output x2 (was x3) |
+| `clay_cup` | Clay Cup | common | `die_3` output x2 (was x3) |
+| `copper_cup` | Copper Cup | rare | `die_4` output x4 (was x6) |
+| `ivory_cup` | Ivory Cup | rare | `die_5` output x4 (was x6) |
+| `card_sharp` | Card Sharp | rare | every hand multiplier x1.25 |
+| `wound_spring` | Wound Spring | rare | auto-roll interval x0.85 |
+| `quick_hand` | Quick Hand | epic | auto-roll interval x0.7 |
+| `whittling_knife` | Whittling Knife | epic | face cap +2 |
+| `second_helping` | Second Helping | epic | draft growth -0.05 |
+
+A cup is only offered while its die is owned. Charms held are left out of the offer while enough others remain, so a run sees every charm before a duplicate. Charms reset on a luck reset except the ones Memory keeps (section 7.1).
+
+TODO owner: whether the hand bases or the charm pool need another pass after the first outside playtest; the stacking rule above is what ships.
 
 ## 6. Manual actions
 
@@ -112,15 +144,34 @@ Purpose: list what the player can click, what each costs and what automation exi
 | Edit a face | TODO | none | M4 | TODO owner |
 | Prestige | threshold | none, always a choice | M5 | TODO owner |
 
-## 7. Prestige
+## 7. Prestige (luck)
 
-Purpose: define the one reset layer in v1: trigger, formula, what resets, what stays, and target cycle length. The "what resets, what stays" dialog in M5 renders this section.
+Purpose: define the one reset layer in v1: trigger, formula, what resets, what stays, and target cycle length. The Luck tab renders this section as the reset preview and the luck shop. Shipped in M3 as "luck" and reworked in M4 (`docs/plans/active/m4-luck.md` sections 1 and 2; the owner delegated these edits, 2026-10-26).
 
-- Trigger: TODO owner (proposal: available once lifetime points cross a threshold, worthwhile per section 12).
-- Formula: TODO owner (proposal: root or log of lifetime points, additive global multiplier, PLAN.md section 5).
-- Resets: dice levels, ascensions, draft progress and picks, points.
-- Stays: prestige currency, face edits (TODO owner), achievements, settings.
-- Target cycle length: first prestige worthwhile between 30 and 60 minutes active, cycles shorten after (section 12).
+- Trigger: the current run has earned `rules.luck.threshold` = 1e10 points (`totalEarnedRun`; `src/content/rules.ts`; the brief's 1e6 was retuned on 2026-10-25, `docs/BALANCE_LOG.md`). Below it the Luck tab shows the threshold and a progress bar.
+- Formula: luck on reset = floor(`perDecade` x log10(`totalEarnedRun` / `threshold`)) + 1, with `rules.luck.perDecade` = 10, so the first reset at the threshold gives 1 luck, a run of 1e11 gives 11, 1e12 gives 21: ten more luck per tenfold run, a log curve that cannot run away with the run total (M3 shipped floor(sqrt(run / threshold)), replaced in M4). Core: `luckOnReset` in `src/core/formulas.ts`.
+- Two counters: `luck` is spendable in the luck shop (section 7.1); `luckTotal` is lifetime luck earned, spent or not. The points multiplier is 1 + `rules.luck.perPoint` x `luckTotal` with `perPoint` = 0.1, so spending luck never weakens a roll.
+- Resets: points, the run total, the dice (die_1 back to level 1 or to the Head Start level, the other four unowned, faces back to 1 to 6, ascensions 0), hand upgrade levels, charms except the ones Memory keeps (up to its level, highest rarity first, pick order on ties), draft progress and the open offer, the last roll; the auto-roll interval is rebuilt from the kept charms and Quick Hands.
+- Stays: luck and lifetime luck, every luck upgrade, trophies, lifetime stats, settings and the auto-roll unlock and switch, auto-ascend, auto-level. Face edits do not survive (they belong to the dice, which reset; the owner's earlier TODO is closed this way, open to reversal).
+- Cycle length, active bot on seeds 1 / 2 / 3 after the 2026-10-26 retune: first luck at 0:34:41 / 0:34:12 / 0:41:43 (target 30 to 60 min, section 12), second luck 26 to 34 minutes after the first (target within 60 min), then about every 20 minutes (the bot's cooldown; a player resets when the preview reads well). Lifetime points at 8 h 1.4e37 to 4.0e37 (target 1e25 to 1e45), see `docs/BALANCE_LOG.md`.
+
+### 7.1 Luck upgrades (the luck shop, new in M4)
+
+Purpose: what spendable luck buys. Table `src/content/luckUpgrades.ts`, seven rows, permanent across runs. Cost of the next level = ceil(`baseCost` x `costGrowth` ^ level), paid in luck; `src/core/formulas.ts` `luckUpgradeCost` and `luckEffects`, command `buyLuckUpgrade`.
+
+| Id | Name | Max level | Cost per level (luck) | Effect per level (`effect`) |
+|---|---|---|---|---|
+| `head_start` | Head Start | 5 | 2, 4, 6, 9, 14 | every run starts with die_1 at level 10 x level (50 at the cap) |
+| `quick_hands` | Quick Hands | 8 | 1, 2, 3, 4, 6, 8, 12, 18 | auto-roll interval x0.92 (x0.51 at the cap), on top of the charms |
+| `deep_pockets` | Deep Pockets | 10 | 1, 2, 2, 3, 4, 6, 8, 11, 15, 21 | all points x1.2 (x6.2 at the cap) |
+| `keen_eye` | Keen Eye | 5 | 2, 4, 6, 9, 14 | every hand multiplier x(1 + 0.15 x level) (x1.75 at the cap) |
+| `lucky_draw` | Lucky Draw | 2 | 4, 8 | +1 charm in every draft offer (five at the cap) |
+| `memory` | Memory | 3 | 5, 10, 20 | one more charm survives a luck reset, highest rarity first |
+| `steady_hands` | Steady Hands | 1 | 3 | auto-level: once per simulated second (`rules.luck.autoLevelEveryMs` 1000) buy the cheapest affordable die level, then the next die when affordable; a switch in the dice board header, on once bought (`autoLevel` in the save, command `setAutoLevel`) |
+
+Everything maxed costs 185 luck, about the fifth or sixth reset of an active player. The sim bot buys by income lift per luck right after each reset: Deep Pockets and Quick Hands first, then Keen Eye and Head Start, Memory and Lucky Draw once the resets pay 20 or more.
+
+TODO owner: whether the memory-kept charms should include the cups of unowned dice (they do today and apply once the die is rebought), and whether a reset should ever be worth less than one luck (today the threshold always pays 1).
 
 ## 8. Unlock timeline
 
@@ -149,7 +200,26 @@ Purpose: fix how time away is converted into progress.
 
 Purpose: list achievements, their conditions and any reward, as a content table.
 
-TODO owner. Proposal: achievements are cosmetic plus a small global multiplier each, never a gate for automation (section 1, Change). Table lands in M3.
+Shipped in M3 as trophies, `src/content/trophies.ts`, fourteen rows; the owner delegated the M3 and M4 content edits of this section (`docs/plans/active/m4-luck.md` section 3, 2026-10-26). Each held trophy multiplies every roll by `rules.trophy.multiplier` = 1.02 (`src/content/rules.ts`, `trophy.multiplier`), compounding, so all fourteen give x1.32. Trophies never gate automation (section 1, Change) and survive a luck reset. Core checks them after every state change that can complete one (`src/core/trophies.ts`); the latest one earned surfaces in `newTrophy` for the toast.
+
+| Id | Name | Condition (`condition`) |
+|---|---|---|
+| `first_roll` | First Roll | `rolls` >= 1 |
+| `hundred_rolls` | Warm Hands | `rolls` >= 100 |
+| `thousand_rolls` | Regular | `rolls` >= 1,000 |
+| `ten_thousand_rolls` | Part of the Furniture | `rolls` >= 10,000 |
+| `second_die` | Company | `dieOwned` `die_2` |
+| `third_die` | A Crowd | `dieOwned` `die_3` |
+| `fourth_die` | Full Table | `dieOwned` `die_4` |
+| `fifth_die` | The Whole Set | `dieOwned` `die_5` |
+| `first_ascension` | Over the Top | `ascensions` >= 1 (sum over dice, this run) |
+| `first_charm` | Lucky Charm | `charms` >= 1 held |
+| `first_luck` | Pressed Your Luck | `prestiges` >= 1 |
+| `five_of_a_kind` | Five Alike | `hand` `five_kind` rolled once |
+| `million` | Millionaire | `totalEarned` >= 1,000,000 (lifetime) |
+| `billion` | Billionaire | `totalEarned` >= 1,000,000,000 (lifetime) |
+
+Rolls counted by offline estimation count towards the roll trophies. TODO owner: whether later milestones (a luck upgrade maxed, a second prestige, 1e15 lifetime) deserve rows; the multiplier per trophy if fourteen feel too few or x1.32 too much.
 
 ## 11. Save policy
 

@@ -1,7 +1,7 @@
 // Content validation tests: the shipped tables pass, the M3 tables and rules match the brief, and a
 // broken table is rejected with messages that name the offending rows and ids.
 import { describe, expect, it } from 'vitest'
-import { charms, COMBO_IDS, combos, content, dice, trophies, validateContent } from './index'
+import { charms, COMBO_IDS, combos, content, dice, LUCK_UPGRADE_IDS, luckUpgrades, trophies, validateContent } from './index'
 import type { DieDef } from './schema'
 
 const messageOf = (run: () => void): string => {
@@ -50,8 +50,10 @@ describe('content tables', () => {
         'points mul 1.25',
         'points mul 1.5',
         'points mul 2',
-        'die:die_1 mul 3',
-        'die:die_5 mul 6',
+        'die:die_1 mul 2',
+        'die:die_3 mul 2',
+        'die:die_4 mul 4',
+        'die:die_5 mul 4',
         'combo mul 1.25',
         'autoroll mul 0.85',
         'autoroll mul 0.7',
@@ -74,14 +76,28 @@ describe('content tables', () => {
     expect(kinds).toEqual(expect.arrayContaining(['ascensions', 'charms', 'prestiges', 'hand']))
   })
 
-  it('rules carry the M3 numbers from the brief', () => {
+  it('luck upgrades are the seven of m4-luck.md section 2, each id once, with the caps, costs and effects of the brief', () => {
+    expect(luckUpgrades.map((u) => u.id)).toEqual([...LUCK_UPGRADE_IDS])
+    expect(luckUpgrades.every((u) => u.effect.kind === u.id)).toBe(true)
+    const byId = Object.fromEntries(luckUpgrades.map((u) => [u.id, u]))
+    expect(byId['head_start']).toMatchObject({ maxLevel: 5, baseCost: 2, costGrowth: 1.6, effect: { kind: 'head_start', value: 10 } })
+    expect(byId['quick_hands']).toMatchObject({ maxLevel: 8, baseCost: 1, costGrowth: 1.5, effect: { kind: 'quick_hands', value: 0.92 } })
+    expect(byId['deep_pockets']).toMatchObject({ maxLevel: 10, baseCost: 1, costGrowth: 1.4, effect: { kind: 'deep_pockets', value: 1.2 } })
+    expect(byId['keen_eye']).toMatchObject({ maxLevel: 5, baseCost: 2, costGrowth: 1.6, effect: { kind: 'keen_eye', value: 0.15 } })
+    expect(byId['lucky_draw']).toMatchObject({ maxLevel: 2, baseCost: 4, costGrowth: 2, effect: { kind: 'lucky_draw', value: 1 } })
+    expect(byId['memory']).toMatchObject({ maxLevel: 3, baseCost: 5, costGrowth: 2, effect: { kind: 'memory', value: 1 } })
+    expect(byId['steady_hands']).toMatchObject({ maxLevel: 1, baseCost: 3, effect: { kind: 'steady_hands', value: 1 } })
+  })
+
+  it('rules carry the M3 and M4 numbers from the briefs and the balance log', () => {
     const { ascension, combo, face, draft, luck, trophy } = content.rules
-    // costMultiplier and luck.threshold are the 2026-10-25 retunes (docs/BALANCE_LOG.md); the rest is the brief as written.
-    expect(ascension).toEqual({ level: 100, multiplier: 100, costMultiplier: 300 })
+    // luck.threshold is the 2026-10-25 retune; draft.growth (1.15 to 1.3) and ascension.costMultiplier
+    // (300 to 400) are the 2026-10-26 M4 retune (docs/BALANCE_LOG.md); the rest is the briefs as written.
+    expect(ascension).toEqual({ level: 100, multiplier: 100, costMultiplier: 400 })
     expect(combo).toEqual({ upgradeCost: 50, costGrowth: 2.35, step: 0.1 })
     expect(face).toEqual({ cap: 12, costFactor: 5, costGrowth: 1.6, unlockLevel: 10 })
-    expect(draft).toEqual({ growth: 1.15, offerSize: 3, rarityWeights: { common: 6, rare: 3, epic: 1 } })
-    expect(luck).toEqual({ threshold: 1e10, perPoint: 0.1 })
+    expect(draft).toEqual({ growth: 1.3, offerSize: 3, rarityWeights: { common: 6, rare: 3, epic: 1 } })
+    expect(luck).toEqual({ threshold: 1e10, perPoint: 0.1, perDecade: 10, autoLevelEveryMs: 1000 })
     expect(trophy).toEqual({ multiplier: 1.02 })
   })
 })
@@ -148,6 +164,19 @@ describe('validateContent on a broken table', () => {
     expect(message).toMatch(/combos\[6\] "royal_flush": id: /)
     expect(message).toMatch(/combos\[7\] "two_pair": base: /)
     expect(message).toMatch(/duplicate id "two_pair"/)
+  })
+
+  it('rejects a luck upgrades table missing an upgrade, an unknown id, a zero cap and a growth below 1', () => {
+    const [first, ...rest] = luckUpgrades
+    if (!first) throw new Error('setup')
+    const message = messageOf(() =>
+      validateContent({ luckUpgrades: [...rest, { ...first, id: 'rabbit_foot' }, { ...rest[0], maxLevel: 0, costGrowth: 0.9 }] }),
+    )
+    expect(message).toMatch(/luckUpgrades: upgrade "head_start" has no row/)
+    expect(message).toMatch(/luckUpgrades\[6\] "rabbit_foot": id: /)
+    expect(message).toMatch(/luckUpgrades\[7\] "quick_hands": maxLevel: /)
+    expect(message).toMatch(/luckUpgrades\[7\] "quick_hands": costGrowth: /)
+    expect(message).toMatch(/duplicate id "quick_hands"/)
   })
 
   it('rejects a charm with a bad rarity, a bad target or an unknown die, and a trophy on an unknown die or hand', () => {

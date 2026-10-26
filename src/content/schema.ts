@@ -94,6 +94,44 @@ export const charmDefSchema = z.strictObject({
 })
 export type CharmDef = z.infer<typeof charmDefSchema>
 
+/**
+ * The seven luck upgrades, a closed set: core applies each effect kind in one place
+ * (src/core/formulas.ts, src/core/commands.ts), so a new upgrade is a core change as well as a
+ * content row. docs/plans/active/m4-luck.md section 2; GDD section 7.1.
+ */
+export const luckUpgradeIdSchema = z.enum(['head_start', 'quick_hands', 'deep_pockets', 'keen_eye', 'lucky_draw', 'memory', 'steady_hands'])
+export type LuckUpgradeId = z.infer<typeof luckUpgradeIdSchema>
+export const LUCK_UPGRADE_IDS: readonly LuckUpgradeId[] = luckUpgradeIdSchema.options
+
+/**
+ * What a luck upgrade does per level. `head_start`: each run starts with die_1 at `value` x level.
+ * `quick_hands`: auto-roll interval x value per level. `deep_pockets`: all points x value per
+ * level. `keen_eye`: every combo multiplier x (1 + value x level). `lucky_draw`: +value charms in
+ * every draft offer per level. `memory`: up to value x level charms survive a luck reset, highest
+ * rarity first. `steady_hands`: auto-level is available (value unused, kept at 1).
+ */
+export const luckUpgradeEffectKindSchema = z.enum(['head_start', 'quick_hands', 'deep_pockets', 'keen_eye', 'lucky_draw', 'memory', 'steady_hands'])
+export type LuckUpgradeEffectKind = z.infer<typeof luckUpgradeEffectKindSchema>
+
+export const luckUpgradeEffectSchema = z.strictObject({
+  kind: luckUpgradeEffectKindSchema,
+  value: z.number().positive(),
+})
+export type LuckUpgradeEffect = z.infer<typeof luckUpgradeEffectSchema>
+
+/** One luck upgrade (m4-luck.md section 2; GDD section 7.1). Cost of the next level = ceil(baseCost x costGrowth ^ level), paid in luck. */
+export const luckUpgradeDefSchema = z.strictObject({
+  id: luckUpgradeIdSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  maxLevel: z.number().int().positive(),
+  baseCost: z.number().positive(),
+  costGrowth: z.number().min(1),
+  effect: luckUpgradeEffectSchema,
+  notes: z.string().optional(),
+})
+export type LuckUpgradeDef = z.infer<typeof luckUpgradeDefSchema>
+
 /** When a trophy is earned. Every kind reads one field of the state; core evaluates them in src/core/trophies.ts. */
 export const trophyConditionSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('rolls'), count: z.number().int().positive() }),

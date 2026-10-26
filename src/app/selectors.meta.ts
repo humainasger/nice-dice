@@ -34,6 +34,11 @@ export const selectDraftProgress = (s: StoreState): number => s.game.draft.progr
 export const selectDraftRequirement = (s: StoreState): number => draftRequirement(s.game)
 export const selectDraftTaken = (s: StoreState): number => s.game.draft.taken
 export const selectDraftOpen = (s: StoreState): boolean => s.game.draft.offer !== null
+/** The draft dialog shows: an offer exists and the player has not put it aside. */
+export const selectDraftDialogOpen = (s: StoreState): boolean => s.game.draft.offer !== null && !s.ui.draftDismissed
+/** An offer exists but was put aside with "Decide later"; the Charms tab offers to reopen it. */
+export const selectDraftWaiting = (s: StoreState): boolean => s.game.draft.offer !== null && s.ui.draftDismissed
+export const selectDraftDismissed = (s: StoreState): boolean => s.ui.draftDismissed
 export const selectDraftCanReroll = (s: StoreState): boolean => s.game.draft.offer !== null && !s.game.draft.rerolled
 /** The offer's charm ids, empty while no draft is open. Wrap in useShallow. */
 export const selectDraftOfferIds = (s: StoreState): readonly Id[] => s.game.draft.offer ?? EMPTY_IDS
@@ -42,6 +47,12 @@ export const selectHeldCharmIds = (s: StoreState): readonly Id[] => s.game.charm
 export const selectCharmCount = (s: StoreState): number => s.game.charms.length
 /** Product of the held points charms, formatted ("1.88"). */
 export const selectCharmPointsText = (s: StoreState): string => N.format(charmEffects(s.game).points)
+
+/** The locked Charms tab's headline: after a luck reset the charms are coming back, not opening for the first time. */
+export function charmsLockedHeadline(prestiges: number): string {
+  return prestiges > 0 ? 'Charms return after your first ascension of this run.' : 'Charms open after your first ascension.'
+}
+export const selectCharmsLockedHeadline = (s: StoreState): string => charmsLockedHeadline(s.game.prestiges)
 
 export const RARITY_LABEL: Readonly<Record<CharmRarity, string>> = { common: 'Common', rare: 'Rare', epic: 'Epic' }
 
@@ -91,10 +102,10 @@ export const selectLuckProgressPercent = (s: StoreState): number => {
 }
 /** The points multiplier luck gives right now ("1.3"). */
 export const selectLuckMultiplierText = (s: StoreState): string => N.format(luckMultiplier(s.game))
-/** The points multiplier luck would give after a prestige right now. */
+/** The points multiplier luck would give after a prestige right now. Lifetime luck drives it (M4): spending luck never lowers it. */
 export const selectLuckAfterResetText = (s: StoreState): string => {
   const { onReset } = luckPreview(s.game)
-  return N.format(N.add(1, N.mul(content.rules.luck.perPoint, s.game.luck + onReset)))
+  return N.format(N.add(1, N.mul(content.rules.luck.perPoint, s.game.luckTotal + onReset)))
 }
 
 // Trophies
@@ -108,6 +119,19 @@ export const selectNewTrophyId = (s: StoreState): string | null => s.game.newTro
 export const selectNewTrophyName = (s: StoreState): string => (s.game.newTrophy === null ? '' : trophyDef(s.game.newTrophy).name)
 export const selectNewTrophyDescription = (s: StoreState): string =>
   s.game.newTrophy === null ? '' : trophyDef(s.game.newTrophy).description
+
+// The toast queue (ui.trophyQueue): the store appends every trophy a state change awards; the
+// toast shows the head and shifts it off after its time.
+export const selectTrophyToastId = (s: StoreState): string | null => s.ui.trophyQueue[0] ?? null
+export const selectTrophyToastName = (s: StoreState): string => {
+  const id = s.ui.trophyQueue[0]
+  return id === undefined ? '' : trophyDef(id).name
+}
+export const selectTrophyToastDescription = (s: StoreState): string => {
+  const id = s.ui.trophyQueue[0]
+  return id === undefined ? '' : trophyDef(id).description
+}
+export const selectTrophyQueueLength = (s: StoreState): number => s.ui.trophyQueue.length
 
 /** Where a player stands on a trophy, as "412 / 1.00K rolls" or "Buy Second Die". */
 export function trophyProgressText(def: TrophyDef, game: GameState): string {

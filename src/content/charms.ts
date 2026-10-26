@@ -1,10 +1,13 @@
 // The charms table: the fourteen draftable charms (docs/plans/active/m3-game.md section 4; GDD
 // section 5, Draft picks row). Rarity picks the draw weight (rules.draft.rarityWeights); the effect
-// says what the charm multiplies or adds. Charms stack multiplicatively and reset on luck. Plain
-// values only; core applies them in src/core/formulas.ts.
+// says what the charm multiplies or adds. Charms stack multiplicatively and reset on luck (the
+// memory upgrade keeps up to three). Plain values only; core applies them in src/core/formulas.ts.
+// The die cups were x3 (common) and x6 (rare) in M3; x2 and x4 since 2026-10-26 (M4), the second
+// lever of the late-game retune (docs/BALANCE_LOG.md).
 import type { CharmDef } from './schema'
 
 const NOTES = 'baseline from docs/plans/active/m3-game.md section 4, tune via GDD section 5'
+const CUP_NOTES = 'm3-game.md section 4 baseline x3 common / x6 rare, retuned 2026-10-26 to x2 / x4 (docs/BALANCE_LOG.md); tune via GDD section 5'
 
 export const charms: readonly CharmDef[] = [
   {
@@ -44,40 +47,40 @@ export const charms: readonly CharmDef[] = [
     name: 'Oak Cup',
     flavour: 'The first die rolls out of something older than the game.',
     rarity: 'common',
-    effect: { target: 'die:die_1', op: 'mul', value: 3 },
-    notes: NOTES,
+    effect: { target: 'die:die_1', op: 'mul', value: 2 },
+    notes: CUP_NOTES,
   },
   {
     id: 'tin_cup',
     name: 'Tin Cup',
     flavour: 'Dented, loud and lucky for the second die.',
     rarity: 'common',
-    effect: { target: 'die:die_2', op: 'mul', value: 3 },
-    notes: NOTES,
+    effect: { target: 'die:die_2', op: 'mul', value: 2 },
+    notes: CUP_NOTES,
   },
   {
     id: 'clay_cup',
     name: 'Clay Cup',
     flavour: 'Fired once, thrown a thousand times. Third die.',
     rarity: 'common',
-    effect: { target: 'die:die_3', op: 'mul', value: 3 },
-    notes: NOTES,
+    effect: { target: 'die:die_3', op: 'mul', value: 2 },
+    notes: CUP_NOTES,
   },
   {
     id: 'copper_cup',
     name: 'Copper Cup',
     flavour: 'Warm to the touch; the fourth die comes out heavier.',
     rarity: 'rare',
-    effect: { target: 'die:die_4', op: 'mul', value: 6 },
-    notes: NOTES,
+    effect: { target: 'die:die_4', op: 'mul', value: 4 },
+    notes: CUP_NOTES,
   },
   {
     id: 'ivory_cup',
     name: 'Ivory Cup',
     flavour: 'Kept for the fifth die and nothing else.',
     rarity: 'rare',
-    effect: { target: 'die:die_5', op: 'mul', value: 6 },
-    notes: NOTES,
+    effect: { target: 'die:die_5', op: 'mul', value: 4 },
+    notes: CUP_NOTES,
   },
   {
     id: 'card_sharp',

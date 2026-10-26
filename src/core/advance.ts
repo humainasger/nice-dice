@@ -2,6 +2,7 @@
 // absence in fixed ticks up to a cap and settles the rest at expected value. Both are pure and
 // deterministic: the RNG lives in the state, the clock arrives as an argument.
 import { autoAscendAll } from './ascend'
+import { autoLevelActive, autoLevelOnce, autoLevelPasses } from './autoLevel'
 import { rules } from './defs'
 import { expectedPointsPerRoll } from './formulas'
 import { N, type Num } from './num'
@@ -11,37 +12,49 @@ import { checkTrophies } from './trophies'
 
 /**
  * Adds dtMs to playMs. While auto-roll is unlocked and enabled, accumulates elapsedMs and rolls
- * once per full interval, each roll stamped with the simulated time its interval completed. With
- * auto-ascend on, any die sitting at the cap ascends. Returns the same object when dtMs is not a
- * positive finite number. Meant for ticks of about 100 ms; long absences go through applyOffline.
+ * once per full interval, each roll stamped with the simulated time its interval completed. Each
+ * rules.luck.autoLevelEveryMs boundary crossed runs one auto-level pass while that is switched on
+ * and owned. With auto-ascend on, any die sitting at the cap ascends. Returns the same object when
+ * dtMs is not a positive finite number. Meant for ticks of about 100 ms; long absences go through
+ * applyOffline.
  */
 export function advance(state: GameState, dtMs: number): GameState {
   if (!Number.isFinite(dtMs) || dtMs <= 0) return state
   const playMs = state.playMs + dtMs
-  const { autoRoll } = state
-  if (!autoRoll.unlocked || !autoRoll.enabled || !(autoRoll.intervalMs > 0)) return sweep({ ...state, playMs }, false)
-
   let next: GameState = { ...state, playMs }
-  let elapsed = autoRoll.elapsedMs + dtMs
-  // The interval in progress began elapsedMs before this call; each roll lands on its boundary.
-  // parseSave keeps elapsedMs below intervalMs, so every boundary is past the old playMs; the
-  // clamp keeps a hand-built state with a backlog from stamping a roll before time zero, which
-  // the save schema would then refuse.
-  let at = state.playMs - autoRoll.elapsedMs
-  let rolled = false
-  while (elapsed >= autoRoll.intervalMs) {
-    elapsed -= autoRoll.intervalMs
-    at += autoRoll.intervalMs
-    next = performRoll(next, Math.max(at, 0))
-    rolled = true
+  let changed = false
+  const { autoRoll } = state
+  if (autoRoll.unlocked && autoRoll.enabled && autoRoll.intervalMs > 0) {
+    let elapsed = autoRoll.elapsedMs + dtMs
+    // The interval in progress began elapsedMs before this call; each roll lands on its boundary.
+    // parseSave keeps elapsedMs below intervalMs, so every boundary is past the old playMs; the
+    // clamp keeps a hand-built state with a backlog from stamping a roll before time zero, which
+    // the save schema would then refuse.
+    let at = state.playMs - autoRoll.elapsedMs
+    while (elapsed >= autoRoll.intervalMs) {
+      elapsed -= autoRoll.intervalMs
+      at += autoRoll.intervalMs
+      next = performRoll(next, Math.max(at, 0))
+      changed = true
+    }
+    next = { ...next, autoRoll: { ...next.autoRoll, elapsedMs: elapsed } }
   }
-  return sweep({ ...next, autoRoll: { ...next.autoRoll, elapsedMs: elapsed } }, rolled)
+  const passes = autoLevelPasses(state.playMs, playMs)
+  if (passes > 0 && autoLevelActive(next)) {
+    for (let pass = 0; pass < passes; pass++) {
+      const levelled = autoLevelOnce(next)
+      if (levelled === next) break
+      next = levelled
+      changed = true
+    }
+  }
+  return sweep(next, changed)
 }
 
-/** The auto-ascend sweep, then the trophy check when a roll or an ascension changed anything. */
-function sweep(state: GameState, rolled: boolean): GameState {
+/** The auto-ascend sweep, then the trophy check when a roll, a purchase or an ascension changed anything. */
+function sweep(state: GameState, changed: boolean): GameState {
   const swept = autoAscendAll(state)
-  return rolled || swept !== state ? checkTrophies(swept) : swept
+  return changed || swept !== state ? checkTrophies(swept) : swept
 }
 
 export interface OfflineOptions {
@@ -108,7 +121,7 @@ export function applyOffline(state: GameState, elapsedMs: number, opts: OfflineO
   }
 }
 
-/** Expected-value settlement of a stretch too long to tick: every full interval becomes one mean roll. */
+/** Expected-value settlement of a stretch too long to tick: every full interval becomes one mean roll. No purchases happen here. */
 function estimate(state: GameState, ms: number): GameState {
   const playMs = state.playMs + ms
   const { autoRoll } = state

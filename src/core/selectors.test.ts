@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
 import { dispatch } from './commands'
-import { comboDef } from './defs'
+import { comboDef, luckUpgradeDef } from './defs'
 import {
   comboMultiplier,
   comboUpgradeCost,
@@ -13,6 +13,7 @@ import {
   faceUpgradeCost,
   levelCost,
   levelsBuyable,
+  luckOnReset,
 } from './formulas'
 import { N, type Num } from './num'
 import { createInitialState } from './save'
@@ -25,6 +26,8 @@ import {
   expectedPointsPerSecond,
   heldCharms,
   luckPreview,
+  luckSummary,
+  luckUpgradeView,
   multiplierBreakdown,
   nextUnlock,
   pointsPerRollExpected,
@@ -244,16 +247,43 @@ describe('dieFaceView', () => {
   })
 })
 
-describe('luckPreview', () => {
-  it('unlocks at the threshold and previews the luck a prestige grants', () => {
+describe('luckPreview, luckSummary and luckUpgradeView', () => {
+  it('luckPreview unlocks at the threshold and previews the luck a prestige grants with the log formula', () => {
     const state = createInitialState(1)
     const at = (run: number): GameState => ({ ...state, totalEarned: N.from(run), totalEarnedRun: N.from(run) })
     const t = rules.luck.threshold
-    expect(luckPreview(at(0))).toEqual({ unlocked: false, onReset: 0, threshold: N.from(t), multiplier: N.one })
+    expect(luckPreview(at(0))).toEqual({ unlocked: false, onReset: 0, threshold: N.from(t) })
     expect(luckPreview(at(t)).unlocked).toBe(true)
     expect(luckPreview(at(t)).onReset).toBe(1)
-    expect(luckPreview(at(9 * t)).onReset).toBe(3)
-    expect(close(luckPreview({ ...state, luck: 4 }).multiplier, N.from(1 + 4 * rules.luck.perPoint))).toBe(true)
+    expect(luckPreview(at(10 * t)).onReset).toBe(rules.luck.perDecade + 1)
+    expect(luckPreview(at(9 * t)).onReset).toBe(luckOnReset(at(9 * t)))
+  })
+
+  it('luckSummary separates spendable from lifetime luck and carries the multiplier and the formula constants', () => {
+    const state = { ...createInitialState(1), luck: 3, luckTotal: 12 }
+    const summary = luckSummary(state)
+    expect(summary.luck).toBe(3)
+    expect(summary.luckTotal).toBe(12)
+    expect(close(summary.multiplier, N.from(1 + 12 * rules.luck.perPoint))).toBe(true)
+    expect(summary.perDecade).toBe(rules.luck.perDecade)
+    expect(N.eq(summary.threshold, rules.luck.threshold)).toBe(true)
+  })
+
+  it('luckUpgradeView shows level, cap and next cost, and agrees with dispatch on affordability', () => {
+    const poor = { ...createInitialState(1), luck: 1, luckTotal: 1 }
+    const view = luckUpgradeView(poor, 'head_start')
+    expect(view.def).toBe(luckUpgradeDef('head_start'))
+    expect(view).toMatchObject({ level: 0, maxLevel: 5, nextCost: 2, affordable: false, maxed: false })
+    expect(dispatch(poor, { type: 'buyLuckUpgrade', id: 'head_start' })).toBe(poor)
+    const cheap = luckUpgradeView(poor, 'quick_hands')
+    expect(cheap).toMatchObject({ level: 0, nextCost: 1, affordable: true, maxed: false })
+    const bought = dispatch(poor, { type: 'buyLuckUpgrade', id: 'quick_hands' })
+    expect(bought).not.toBe(poor)
+    expect(luckUpgradeView(bought, 'quick_hands')).toMatchObject({ level: 1, nextCost: 2, affordable: false })
+    const maxed = { ...poor, luck: 100, luckTotal: 100, luckUpgrades: { steady_hands: 1 } }
+    expect(luckUpgradeView(maxed, 'steady_hands')).toMatchObject({ level: 1, maxLevel: 1, nextCost: null, affordable: false, maxed: true })
+    expect(dispatch(maxed, { type: 'buyLuckUpgrade', id: 'steady_hands' })).toBe(maxed)
+    expect(() => luckUpgradeView(poor, 'rabbit_foot' as 'memory')).toThrow(/Unknown luck upgrade id/)
   })
 })
 
@@ -290,16 +320,23 @@ describe('trophyView', () => {
 describe('multiplierBreakdown', () => {
   it('lists every source and their product', () => {
     const base = withLevel(withPoints(createInitialState(1), 1e9), 1, 3)
-    const state: GameState = { ...base, luck: 2, trophies: ['first_roll', 'million'], charms: ['worn_felt', 'tin_cup'] }
+    const state: GameState = { ...base, luck: 0, luckTotal: 2, trophies: ['first_roll', 'million'], charms: ['worn_felt', 'tin_cup'] }
     const view = multiplierBreakdown(state)
-    // die_1 level 1 (x1) plus die_2 level 3 (x6) with the Tin Cup (x3).
-    expect(N.eq(view.dice, 1 + 6 * 3)).toBe(true)
+    // die_1 level 1 (x1) plus die_2 level 3 (x6) with the Tin Cup (x2 since the M4 retune).
+    expect(N.eq(view.dice, 1 + 6 * 2)).toBe(true)
     expect(N.eq(view.combo, expectedComboMultiplier(state))).toBe(true)
     expect(close(view.charms, N.from(1.25))).toBe(true)
     expect(close(view.luck, N.from(1 + 2 * rules.luck.perPoint))).toBe(true)
     expect(close(view.trophies, N.from(rules.trophy.multiplier ** 2))).toBe(true)
     const product = N.mul(N.mul(N.mul(N.mul(view.dice, view.combo), view.charms), view.luck), view.trophies)
     expect(N.eq(view.total, product)).toBe(true)
+    // deep_pockets rides in the luck factor; keen_eye in the expected combo.
+    const upgraded: GameState = { ...state, luckUpgrades: { deep_pockets: 2, keen_eye: 1 } }
+    const after = multiplierBreakdown(upgraded)
+    expect(close(after.luck, N.from((1 + 2 * rules.luck.perPoint) * 1.2 ** 2))).toBe(true)
+    expect(N.gt(after.combo, view.combo)).toBe(true)
+    const afterProduct = N.mul(N.mul(N.mul(N.mul(after.dice, after.combo), after.charms), after.luck), after.trophies)
+    expect(N.eq(after.total, afterProduct)).toBe(true)
     const plain = multiplierBreakdown(createInitialState(1))
     expect(N.eq(plain.dice, 1)).toBe(true)
     expect(N.eq(plain.combo, 1)).toBe(true)

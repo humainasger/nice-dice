@@ -1,6 +1,6 @@
 // State types for the game: what a save holds and what dispatch and advance transform. Every
 // field is readonly; updates build new objects and share the untouched parts (structural sharing).
-import type { ComboId, Id } from '@/content'
+import type { ComboId, Id, LuckUpgradeId } from '@/content'
 import type { Num } from './num'
 
 /** One die slot per content die. level >= 1 when owned, 0 when not. */
@@ -80,8 +80,12 @@ export interface GameState {
   /** Charms held this run, in pick order. The same charm may appear more than once. */
   readonly charms: readonly Id[]
   readonly draft: Draft
-  /** Prestige currency: points multiplier 1 + rules.luck.perPoint x luck. */
+  /** Spendable luck: earned by prestige, spent on luck upgrades. Never above luckTotal. */
   readonly luck: number
+  /** Lifetime luck earned, spent or not; drives the points multiplier 1 + rules.luck.perPoint x luckTotal. */
+  readonly luckTotal: number
+  /** Level per luck upgrade; an upgrade with no entry is level 0. Permanent across runs. */
+  readonly luckUpgrades: Readonly<Partial<Record<LuckUpgradeId, number>>>
   readonly prestiges: number
   /** Trophies held, in the order earned. */
   readonly trophies: readonly Id[]
@@ -89,5 +93,11 @@ export interface GameState {
   readonly newTrophy: Id | null
   /** Ascend a die the moment it reaches the level cap. */
   readonly autoAscend: boolean
+  /**
+   * Auto-level switch: once per rules.luck.autoLevelEveryMs of simulated time, buy the cheapest
+   * affordable die level, then the next die when affordable. Only acts while the steady_hands
+   * upgrade is owned; buying it switches this on.
+   */
+  readonly autoLevel: boolean
   readonly stats: Stats
 }

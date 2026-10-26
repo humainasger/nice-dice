@@ -1,0 +1,151 @@
+{
+  "version": 3,
+  "seed": 1,
+  "rng": [
+    590929760,
+    -1628594240,
+    676507048,
+    -409464416
+  ],
+  "points": "4.69246089677376e6",
+  "totalEarned": "4.00050188954453e10",
+  "totalEarnedRun": "5.01880876520918e6",
+  "rolls": 19,
+  "playMs": 8500,
+  "dice": [
+    {
+      "id": "die_1",
+      "owned": true,
+      "level": 1,
+      "faces": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ascensions": 1,
+      "faceUpgrades": 0
+    },
+    {
+      "id": "die_2",
+      "owned": true,
+      "level": 15,
+      "faces": [
+        3,
+        3,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ascensions": 0,
+      "faceUpgrades": 3
+    },
+    {
+      "id": "die_3",
+      "owned": true,
+      "level": 1,
+      "faces": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ascensions": 0,
+      "faceUpgrades": 0
+    },
+    {
+      "id": "die_4",
+      "owned": true,
+      "level": 1,
+      "faces": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ascensions": 0,
+      "faceUpgrades": 0
+    },
+    {
+      "id": "die_5",
+      "owned": true,
+      "level": 1,
+      "faces": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "ascensions": 0,
+      "faceUpgrades": 0
+    }
+  ],
+  "autoRoll": {
+    "unlocked": true,
+    "enabled": true,
+    "intervalMs": 4600,
+    "elapsedMs": 2500
+  },
+  "lastRoll": {
+    "faces": [
+      6,
+      4,
+      2
+    ],
+    "gained": "1.772720643456428e3",
+    "at": 6000,
+    "hand": null
+  },
+  "combos": {
+    "pair": 2,
+    "three_kind": 1
+  },
+  "charms": [
+    "chalk_mark"
+  ],
+  "draft": {
+    "progress": 0,
+    "taken": 1,
+    "offer": null,
+    "rerolled": false
+  },
+  "luck": 3,
+  "luckTotal": 7,
+  "luckUpgrades": {
+    "quick_hands": 1,
+    "steady_hands": 1
+  },
+  "prestiges": 1,
+  "trophies": [
+    "first_roll",
+    "first_luck",
+    "million",
+    "billion",
+    "second_die",
+    "third_die",
+    "first_ascension",
+    "first_charm",
+    "fourth_die",
+    "fifth_die"
+  ],
+  "newTrophy": null,
+  "autoAscend": true,
+  "autoLevel": true,
+  "stats": {
+    "bestRoll": "8.60466649408064e3",
+    "hands": {
+      "straight": 2,
+      "pair": 2
+    },
+    "lastLuckAt": 6000
+  }
+}

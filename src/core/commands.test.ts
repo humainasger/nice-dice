@@ -1,19 +1,24 @@
 // dispatch on every command, valid and invalid: no-ops hand back the same object, points never go
 // negative, levels never exceed what the points allowed or the cap, the M3 commands (combos,
-// faces, ascension, the draft, luck, auto-ascend, trophies), and a command sequence is
-// deterministic for its seed with every reachable state loadable.
+// faces, ascension, the draft, luck, auto-ascend, trophies), the M4 luck shop (buyLuckUpgrade,
+// setAutoLevel, prestige with memory and head_start), and a command sequence is deterministic for
+// its seed with every reachable state loadable.
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
-import { content } from '@/content'
+import { content, LUCK_UPGRADE_IDS } from '@/content'
 import { advance } from './advance'
 import { dispatch, type Command } from './commands'
-import { charmDef, dieDef } from './defs'
+import { charmDef, dieDef, luckUpgradeDef } from './defs'
 import {
+  autoRollInterval,
   bulkCost,
   comboUpgradeCost,
+  draftOfferSize,
   faceUpgradeCost,
   levelCost,
   levelsBuyable,
+  luckOnReset,
+  luckUpgradeCost,
   maxAffordable,
   rollPoints,
 } from './formulas'
@@ -369,7 +374,8 @@ describe('ascend', () => {
     const picked = dispatch(state, { type: 'pickCharm', index: 0 })
     expect(picked.charms).toHaveLength(1)
     expect(picked.draft.taken).toBe(1)
-    // Progress 2 - 1 = 1 against a requirement of ceil(1.15 ^ 1) = 2: no second offer yet.
+    // Progress 2 - 1 = 1 against a requirement of ceil(growth ^ 1) = 2: no second offer yet.
+    expect(Math.ceil(rules.draft.growth)).toBe(2)
     expect(picked.draft.progress).toBe(1)
     expect(picked.draft.offer).toBeNull()
   })
@@ -450,11 +456,16 @@ describe('prestige', () => {
     expect(dispatch(state, { type: 'prestige' })).toBe(state)
   })
 
-  it('converts the run into luck and resets what the brief says, keeping the rest', () => {
+  it('converts the run into luck (spendable and lifetime) and resets what the brief says, keeping the rest', () => {
     const state = { ...run(4 * rules.luck.threshold), charms: ['worn_felt'], trophies: ['first_roll'], autoAscend: false }
     const unlockedRoll = { ...state, autoRoll: { ...state.autoRoll, unlocked: true, enabled: true, intervalMs: 4000, elapsedMs: 100 } }
+    const gain = luckOnReset(unlockedRoll)
+    expect(gain).toBe(Math.floor(rules.luck.perDecade * Math.log10(4)) + 1)
     const next = dispatch(unlockedRoll, { type: 'prestige' })
-    expect(next.luck).toBe(2)
+    expect(next.luck).toBe(gain)
+    expect(next.luckTotal).toBe(gain)
+    expect(next.luckUpgrades).toBe(unlockedRoll.luckUpgrades)
+    expect(next.autoLevel).toBe(false)
     expect(next.prestiges).toBe(1)
     expect(N.isZero(next.points)).toBe(true)
     expect(N.isZero(next.totalEarnedRun)).toBe(true)
@@ -478,13 +489,125 @@ describe('prestige', () => {
     expect(next.seed).toBe(unlockedRoll.seed)
   })
 
-  it('adds up over several prestiges', () => {
+  it('adds up over several prestiges, into both counters, with spent luck staying spent', () => {
     const first = dispatch(run(rules.luck.threshold), { type: 'prestige' })
     expect(first.luck).toBe(1)
-    const again = { ...first, totalEarned: N.from(1e9), totalEarnedRun: N.from(9 * rules.luck.threshold) }
+    expect(first.luckTotal).toBe(1)
+    const spent = dispatch(first, { type: 'buyLuckUpgrade', id: 'quick_hands' })
+    expect(spent.luck).toBe(0)
+    const again = { ...spent, totalEarned: N.from(1e12), totalEarnedRun: N.from(9 * rules.luck.threshold) }
+    const gain = luckOnReset(again)
+    expect(gain).toBe(Math.floor(rules.luck.perDecade * Math.log10(9)) + 1)
     const second = dispatch(again, { type: 'prestige' })
-    expect(second.luck).toBe(4)
+    expect(second.luck).toBe(gain)
+    expect(second.luckTotal).toBe(1 + gain)
+    expect(second.luckUpgrades).toEqual({ quick_hands: 1 })
     expect(second.prestiges).toBe(2)
+  })
+
+  it('memory keeps the rarest charms through the reset and head_start sets the starting level of the first die', () => {
+    const base = { ...run(4 * rules.luck.threshold), charms: ['worn_felt', 'quick_hand', 'silver_thimble', 'oak_cup', 'chalk_mark'] }
+    const plain = dispatch(base, { type: 'prestige' })
+    expect(plain.charms).toEqual([])
+    expect(plain.dice[0]).toMatchObject({ level: 1, ascensions: 0 })
+    const remembered = { ...base, luckUpgrades: { memory: 2, head_start: 3 } }
+    const next = dispatch(remembered, { type: 'prestige' })
+    // Epic Quick Hand first, then the rare Silver Thimble; the commons go.
+    expect(next.charms).toEqual(['quick_hand', 'silver_thimble'])
+    expect(next.dice[0]).toMatchObject({ level: 30, ascensions: 0, faces: [1, 2, 3, 4, 5, 6] })
+    expect(next.dice.slice(1).every((die) => !die.owned)).toBe(true)
+    expect(next.draft).toEqual({ progress: 0, taken: 0, offer: null, rerolled: false })
+    // The kept Quick Hand still speeds up auto-roll in the new run.
+    expect(next.autoRoll.intervalMs).toBe(autoRollInterval(next))
+    expect(next.autoRoll.intervalMs).toBe(Math.floor(rules.autoRoll.baseIntervalMs * 0.7))
+    expect(next.autoRoll.elapsedMs).toBe(0)
+    const all = dispatch({ ...base, luckUpgrades: { memory: 3, head_start: 5 } }, { type: 'prestige' })
+    expect(all.charms).toEqual(['quick_hand', 'silver_thimble', 'worn_felt'])
+    expect(all.dice[0]?.level).toBe(50)
+    expect(parseSave(serializeState(all)).ok).toBe(true)
+  })
+})
+
+describe('buyLuckUpgrade', () => {
+  const rich = (luck: number, extra: Partial<GameState> = {}): GameState => ({ ...createInitialState(1), luck, luckTotal: luck, ...extra })
+
+  it('ignores an unknown id, a non-string, an unaffordable level and a maxed upgrade', () => {
+    const state = rich(100)
+    expect(dispatch(state, { type: 'buyLuckUpgrade', id: 'rabbit_foot' as 'memory' })).toBe(state)
+    expect(dispatch(state, { type: 'buyLuckUpgrade', id: 7 as unknown as 'memory' })).toBe(state)
+    const poor = rich(1)
+    expect(dispatch(poor, { type: 'buyLuckUpgrade', id: 'head_start' })).toBe(poor)
+    const maxed = rich(100, { luckUpgrades: { lucky_draw: 2 } })
+    expect(dispatch(maxed, { type: 'buyLuckUpgrade', id: 'lucky_draw' })).toBe(maxed)
+    const broke = rich(0)
+    for (const id of LUCK_UPGRADE_IDS) expect(dispatch(broke, { type: 'buyLuckUpgrade', id }), id).toBe(broke)
+  })
+
+  it('charges the next cost from spendable luck only and raises the level, sharing the untouched parts', () => {
+    const state = rich(20)
+    const def = luckUpgradeDef('deep_pockets')
+    const once = dispatch(state, { type: 'buyLuckUpgrade', id: 'deep_pockets' })
+    expect(once.luckUpgrades).toEqual({ deep_pockets: 1 })
+    expect(once.luck).toBe(20 - luckUpgradeCost(def, 0))
+    expect(once.luckTotal).toBe(20)
+    expect(once.dice).toBe(state.dice)
+    expect(once.autoRoll).toBe(state.autoRoll)
+    expect(once.autoLevel).toBe(false)
+    const twice = dispatch(once, { type: 'buyLuckUpgrade', id: 'deep_pockets' })
+    expect(twice.luckUpgrades).toEqual({ deep_pockets: 2 })
+    expect(twice.luck).toBe(once.luck - luckUpgradeCost(def, 1))
+    const other = dispatch(twice, { type: 'buyLuckUpgrade', id: 'memory' })
+    expect(other.luckUpgrades).toEqual({ deep_pockets: 2, memory: 1 })
+    expect(N.gt(rollPoints(twice, [4]), rollPoints(state, [4]))).toBe(true)
+  })
+
+  it('walks every upgrade to its cap at the content costs and never overdraws', () => {
+    for (const def of content.luckUpgrades) {
+      let state = rich(1000)
+      let paid = 0
+      for (let level = 0; level < def.maxLevel; level++) {
+        const next = dispatch(state, { type: 'buyLuckUpgrade', id: def.id })
+        expect(next, `${def.id} level ${level}`).not.toBe(state)
+        paid += luckUpgradeCost(def, level)
+        expect(next.luck).toBe(1000 - paid)
+        expect(next.luckUpgrades[def.id]).toBe(level + 1)
+        state = next
+      }
+      expect(dispatch(state, { type: 'buyLuckUpgrade', id: def.id })).toBe(state)
+      const exact = rich(luckUpgradeCost(def, 0))
+      expect(dispatch(exact, { type: 'buyLuckUpgrade', id: def.id }).luck).toBe(0)
+      const short = rich(luckUpgradeCost(def, 0) - 1)
+      expect(dispatch(short, { type: 'buyLuckUpgrade', id: def.id })).toBe(short)
+    }
+  })
+
+  it('steady_hands switches auto-level on and quick_hands shortens the interval, keeping the partial interval below it', () => {
+    const state = rich(10, { autoRoll: { unlocked: true, enabled: true, intervalMs: 5000, elapsedMs: 4900 } })
+    const steady = dispatch(state, { type: 'buyLuckUpgrade', id: 'steady_hands' })
+    expect(steady.autoLevel).toBe(true)
+    expect(steady.autoRoll).toBe(state.autoRoll)
+    const quick = dispatch(state, { type: 'buyLuckUpgrade', id: 'quick_hands' })
+    expect(quick.autoRoll.intervalMs).toBe(Math.floor(5000 * 0.92))
+    expect(quick.autoRoll.elapsedMs).toBeLessThan(quick.autoRoll.intervalMs)
+    expect(quick.autoLevel).toBe(false)
+    const locked = dispatch(rich(10), { type: 'buyLuckUpgrade', id: 'quick_hands' })
+    expect(locked.autoRoll.intervalMs).toBe(Math.floor(rules.autoRoll.baseIntervalMs * 0.92))
+  })
+})
+
+describe('setAutoLevel', () => {
+  it('is a no-op without steady_hands, for a non-boolean and for the current value, and toggles once owned', () => {
+    const state = createInitialState(1)
+    expect(dispatch(state, { type: 'setAutoLevel', enabled: true })).toBe(state)
+    expect(dispatch(state, { type: 'setAutoLevel', enabled: false })).toBe(state)
+    const owned = dispatch({ ...state, luck: 3, luckTotal: 3 }, { type: 'buyLuckUpgrade', id: 'steady_hands' })
+    expect(owned.autoLevel).toBe(true)
+    expect(dispatch(owned, { type: 'setAutoLevel', enabled: true })).toBe(owned)
+    expect(dispatch(owned, { type: 'setAutoLevel', enabled: 'yes' as unknown as boolean })).toBe(owned)
+    const off = dispatch(owned, { type: 'setAutoLevel', enabled: false })
+    expect(off.autoLevel).toBe(false)
+    expect(off.dice).toBe(owned.dice)
+    expect(dispatch(off, { type: 'setAutoLevel', enabled: true }).autoLevel).toBe(true)
   })
 })
 
@@ -572,6 +695,8 @@ describe('dispatch', () => {
     fc.constant<Command>({ type: 'prestige' }),
     fc.boolean().map((enabled): Command => ({ type: 'setAutoAscend', enabled })),
     fc.constant<Command>({ type: 'clearNewTrophy' }),
+    fc.constantFrom(...LUCK_UPGRADE_IDS).map((id): Command => ({ type: 'buyLuckUpgrade', id })),
+    fc.boolean().map((enabled): Command => ({ type: 'setAutoLevel', enabled })),
   )
   const step: fc.Arbitrary<Step> = fc.oneof(
     command.map((c): Step => ({ kind: 'command', command: c })),
@@ -583,6 +708,10 @@ describe('dispatch', () => {
     N.gte(state.totalEarned, state.points) &&
     N.gte(state.totalEarnedRun, state.points) &&
     N.gte(state.totalEarned, state.totalEarnedRun) &&
+    state.luck >= 0 &&
+    state.luckTotal >= state.luck &&
+    Object.entries(state.luckUpgrades).every(([id, level]) => (level ?? 0) <= luckUpgradeDef(id as (typeof LUCK_UPGRADE_IDS)[number]).maxLevel) &&
+    (!state.autoLevel || (state.luckUpgrades.steady_hands ?? 0) >= 1) &&
     state.dice.length === content.dice.length &&
     state.dice[0]?.owned === true &&
     state.dice.every((die) => (die.owned ? die.level >= 1 && die.level <= CAP : die.level === 0)) &&
@@ -591,7 +720,7 @@ describe('dispatch', () => {
     state.autoRoll.elapsedMs >= 0 &&
     state.autoRoll.elapsedMs < state.autoRoll.intervalMs &&
     state.draft.progress >= 0 &&
-    (state.draft.offer === null || state.draft.offer.length === rules.draft.offerSize) &&
+    (state.draft.offer === null || state.draft.offer.length === draftOfferSize(state)) &&
     new Set(state.trophies).size === state.trophies.length &&
     parseSave(serializeState(state)).ok
 
@@ -617,7 +746,9 @@ describe('dispatch', () => {
     return state
   }
 
-  it('keeps the invariants over any command sequence and is deterministic for a seed', () => {
+  // 300 random games of up to 60 steps, each step re-parsing the save: about 3 s alone, slower
+  // when the sim suite shares the machine, so the default 5 s timeout is not enough.
+  it('keeps the invariants over any command sequence and is deterministic for a seed', { timeout: 60_000 }, () => {
     fc.assert(
       fc.property(fc.integer(), fc.constantFrom(0, 1e3, 1e7, 1e12), fc.array(step, { maxLength: 60 }), (seed, purse, steps) => {
         const once = run(seed, purse, steps)

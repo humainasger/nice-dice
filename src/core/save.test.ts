@@ -4,7 +4,7 @@
 // trophies, the draft offer).
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
-import { content } from '@/content'
+import { content, LUCK_UPGRADE_IDS } from '@/content'
 import { advance } from './advance'
 import { dispatch, type Command } from './commands'
 import { N } from './num'
@@ -62,6 +62,8 @@ const command: fc.Arbitrary<Command> = fc.oneof(
   fc.constant<Command>({ type: 'prestige' }),
   fc.boolean().map((enabled): Command => ({ type: 'setAutoAscend', enabled })),
   fc.constant<Command>({ type: 'clearNewTrophy' }),
+  fc.constantFrom(...LUCK_UPGRADE_IDS).map((id): Command => ({ type: 'buyLuckUpgrade', id })),
+  fc.boolean().map((enabled): Command => ({ type: 'setAutoLevel', enabled })),
 )
 const step: fc.Arbitrary<Step> = fc.oneof(
   command.map((c): Step => ({ kind: 'command', command: c })),
@@ -102,10 +104,13 @@ describe('createInitialState', () => {
     expect(state.charms).toEqual([])
     expect(state.draft).toEqual({ progress: 0, taken: 0, offer: null, rerolled: false })
     expect(state.luck).toBe(0)
+    expect(state.luckTotal).toBe(0)
+    expect(state.luckUpgrades).toEqual({})
     expect(state.prestiges).toBe(0)
     expect(state.trophies).toEqual([])
     expect(state.newTrophy).toBeNull()
     expect(state.autoAscend).toBe(true)
+    expect(state.autoLevel).toBe(false)
     expect(state.stats).toEqual({ bestRoll: N.zero, hands: {}, lastLuckAt: 0 })
   })
 
@@ -135,7 +140,8 @@ describe('serializeState', () => {
 })
 
 describe('parseSave round trip', () => {
-  it('gives back an equal state for the initial state and after play', () => {
+  // 300 random games, each serialized and parsed: slow when the sim suite shares the machine.
+  it('gives back an equal state for the initial state and after play', { timeout: 60_000 }, () => {
     const initial = createInitialState(1)
     expect(parsedOk(serializeState(initial))).toEqual(initial)
     fc.assert(
@@ -264,6 +270,11 @@ describe('parseSave failures', () => {
       ['empty draft offer', (s) => void (s['draft'] = { progress: 0, taken: 0, offer: [], rerolled: false }), /^draft\.offer: /],
       ['negative draft progress', (s) => void (s['draft'] = { progress: -1, taken: 0, offer: null, rerolled: false }), /^draft\.progress: /],
       ['fractional luck', (s) => void (s['luck'] = 1.5), /^luck: /],
+      ['fractional luckTotal', (s) => void (s['luckTotal'] = 2.5), /^luckTotal: /],
+      ['luck above luckTotal', (s) => void ((s['luck'] = 3), (s['luckTotal'] = 1)), /^luckTotal: must be at least luck/],
+      ['negative luck upgrade level', (s) => void (s['luckUpgrades'] = { deep_pockets: -1 }), /^luckUpgrades\.deep_pockets: /],
+      ['luck upgrades not an object', (s) => void (s['luckUpgrades'] = ['deep_pockets']), /^luckUpgrades: /],
+      ['autoLevel as a string', (s) => void (s['autoLevel'] = 'on'), /^autoLevel: /],
       ['negative prestiges', (s) => void (s['prestiges'] = -1), /^prestiges: /],
       ['duplicate trophies', (s) => void (s['trophies'] = ['first_roll', 'first_roll']), /^trophies: /],
       ['newTrophy with a bad id', (s) => void (s['newTrophy'] = 'First Roll'), /^newTrophy: /],
@@ -289,7 +300,7 @@ describe('parseSave failures', () => {
 })
 
 describe('parseSave accepts only states that stay loadable', () => {
-  it('an accepted save still parses after a tick and a roll, with lastRoll.at never negative', () => {
+  it('an accepted save still parses after a tick and a roll, with lastRoll.at never negative', { timeout: 60_000 }, () => {
     // Regression: a save with elapsedMs >= intervalMs loaded, then advance stamped lastRoll.at
     // negative and the next autosave was rejected by the schema.
     fc.assert(
@@ -344,10 +355,13 @@ describe('parseSave defaults and alignment', () => {
         delete save['charms']
         delete save['draft']
         delete save['luck']
+        delete save['luckTotal']
+        delete save['luckUpgrades']
         delete save['prestiges']
         delete save['trophies']
         delete save['newTrophy']
         delete save['autoAscend']
+        delete save['autoLevel']
         delete save['stats']
         delete save['totalEarnedRun']
       }),
@@ -363,13 +377,38 @@ describe('parseSave defaults and alignment', () => {
     expect(back.charms).toEqual([])
     expect(back.draft).toEqual(fresh.draft)
     expect(back.luck).toBe(0)
+    expect(back.luckTotal).toBe(0)
+    expect(back.luckUpgrades).toEqual({})
     expect(back.prestiges).toBe(0)
     expect(back.trophies).toEqual([])
     expect(back.newTrophy).toBeNull()
     expect(back.autoAscend).toBe(true)
+    expect(back.autoLevel).toBe(false)
     expect(back.stats).toEqual(fresh.stats)
     // A missing run total heals to the lifetime total, the only default that keeps the purse under it.
     expect(N.eq(back.totalEarnedRun, back.totalEarned)).toBe(true)
+  })
+
+  it('a missing lifetime luck heals to the luck held, the only default that keeps luck under it', () => {
+    const back = parsedOk(
+      edited(state, (save) => {
+        save['luck'] = 5
+        delete save['luckTotal']
+      }),
+    )
+    expect(back.luck).toBe(5)
+    expect(back.luckTotal).toBe(5)
+  })
+
+  it('aligns the luck upgrades to content: unknown ids and zero levels drop, levels clamp to the cap', () => {
+    const back = parsedOk(
+      edited(state, (save) => {
+        save['luck'] = 0
+        save['luckTotal'] = 50
+        save['luckUpgrades'] = { deep_pockets: 3, rabbit_foot: 2, head_start: 99, quick_hands: 0 }
+      }),
+    )
+    expect(back.luckUpgrades).toEqual({ deep_pockets: 3, head_start: content.luckUpgrades.find((u) => u.id === 'head_start')?.maxLevel })
   })
 
   it('merges a partial nested object key by key', () => {

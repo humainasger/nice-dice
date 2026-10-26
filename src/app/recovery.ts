@@ -1,13 +1,28 @@
-// Recovery after an unreadable save: list every stored copy a player could go back to (the backup
-// slots, quarantined saves, games set aside by reset or import) with what this build can tell
-// about each, and load one into the store. boot() shows the list when loadSave came back
-// quarantined and waits for the choice; nothing runs or saves until then.
+// Recovery after an unreadable save, and the Backups browser in Settings: list every stored copy a
+// player could go back to (the backup slots, quarantined saves, games set aside by reset or import)
+// with what this build can tell about each, and load one into the store. boot() shows the list
+// when loadSave came back quarantined and waits for the choice; nothing runs or saves until then.
+// restoreBackup is the Settings path for a game that is running: it sets the current game aside
+// first, the way a reset does, so a restore is never a one-way door.
 import { N, parseSave } from '@/core'
+import { countsAsAway, elapsedSince } from './offline'
 import { platform } from './platform'
-import { BACKUP_PREFIX, QUARANTINE_PREFIX, REPLACED_PREFIX, describeParseFailure, messageOf, readEnvelope } from './storage'
-import { replaceGame, type RecoveryCandidate, type RecoveryKind } from './store'
+import {
+  BACKUP_PREFIX,
+  QUARANTINE_PREFIX,
+  REPLACED_PREFIX,
+  describeParseFailure,
+  messageOf,
+  readEnvelope,
+  saveNow,
+  setAsideCurrent,
+} from './storage'
+import { creditOffline, replaceGame, setSaveStatus, type RecoveryCandidate, type RecoveryKind } from './store'
 
 export type RestoreResult = { ok: true; savedAt: number } | { ok: false; reason: string }
+
+/** What restoreBackup did: the copy's stamp and how much time since it was credited as away (0 when none was). */
+export type RestoreBackupResult = { ok: true; savedAt: number; creditedMs: number } | { ok: false; reason: string }
 
 /** Rows the dialog lists at most; older copies stay in storage but off the screen. */
 export const MAX_CANDIDATES = 12
@@ -109,4 +124,22 @@ export async function restoreFromKey(key: string): Promise<RestoreResult> {
   if (!parsed.ok) return { ok: false, reason: describeParseFailure(parsed.reason, parsed.detail, 'backup') }
   replaceGame(parsed.state)
   return { ok: true, savedAt: envelope.savedAt }
+}
+
+/**
+ * Restores a stored copy while the game is running (the Backups section in Settings). The current
+ * game is set aside under a replaced key first, exactly as before a reset, then the copy is loaded,
+ * the time since its stamp is credited through the offline policy (silently: the Settings dialog is
+ * open, so the result line reports it instead of the away modal) and the result is saved. A copy
+ * that cannot be loaded leaves the current game in place; the set-aside copy of it is harmless.
+ */
+export async function restoreBackup(key: string, now: number = Date.now()): Promise<RestoreBackupResult> {
+  await setAsideCurrent()
+  const restored = await restoreFromKey(key)
+  if (!restored.ok) return restored
+  const elapsed = elapsedSince(restored.savedAt, now)
+  const creditedMs = countsAsAway(elapsed) && creditOffline(elapsed, false) !== null ? elapsed : 0
+  setSaveStatus({ quarantined: false })
+  await saveNow()
+  return { ok: true, savedAt: restored.savedAt, creditedMs }
 }

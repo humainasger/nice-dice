@@ -1,6 +1,7 @@
 // "While you were away": opens when the store carries an offline summary, closes through
 // dismissOffline. The "estimated" note follows selectOfflineEstimated: only when at least one
-// whole tick was settled at expected value, never for the sub-tick remainder every absence has.
+// auto-roll interval was settled at expected value, so at least one whole roll was estimated,
+// never for the sub-roll remainder every absence has.
 import { useState } from 'react'
 import {
   selectAutoUnlocked,
@@ -77,7 +78,7 @@ export function OfflineModal() {
 
         {estimated && (
           <p className="text-xs text-muted-foreground">
-            Part of that time was settled at the expected value per roll instead of rolled one by one.
+            Partly estimated: part of that time was settled at the expected value per roll instead of rolled one by one.
           </p>
         )}
 

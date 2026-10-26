@@ -108,11 +108,11 @@ For one source, the declarative form does the bookkeeping:
 `text`, `anchor: RefObject<Element | null>`, optional `trigger` (counter; without it a change of
 `text` fires), optional `tone`.
 
-### `<ComboCallout text rank visibleKey detail? className? />`
+### `<ComboCallout text rank visibleKey detail? faces? members? className? />`
 
 "FULL HOUSE 9.6x" slams in, holds 900 ms (`CALLOUT_HOLD_MS`), fades 250 ms (`CALLOUT_FADE_MS`) and
 unmounts. Absolutely positioned over its parent (make the parent `relative`), `aria-hidden` because
-the last-roll line carries the hand for screen readers.
+the play card's last-roll row carries the faces and the hand for screen readers.
 
 - `text`: the label; empty never shows
 - `rank`: 1 pair, 2 two pair, 3 three of a kind, 4 straight, 5 full house, 6 four of a kind, 7 five
@@ -122,15 +122,43 @@ the last-roll line carries the hand for screen readers.
 - `visibleKey`: a counter, every change shows the callout again (the roll count of the roll that
   produced the hand; keep the same key when a roll has no hand, or pass empty text)
 - `detail`: optional second line under the hand, the points gained ("+1.2K")
+- `faces`, `members`: optional, the rolled sides in content order and the indexes of the dice that
+  form the hand (`handMembers` in `src/core`). Given, a `<DiceRow>` of 28 px dice with the members
+  ringed in the rank colour sits between the hand and the detail, so a big hand reads as faces plus
+  name plus gain in one glance. Pass them from a `useShallow` selector (`selectLastRollFaceList`,
+  `selectLastRollMemberList` in `src/app/selectors.ts`)
 - `className`: the default centres the callout in its parent; a parent taller than the viewport (five
   die cards stacked on a phone) wants `items-start pt-14` so it sits over the first row of dice
 
+The game wires it in `src/ui/BenchCallout.tsx`, rendered inside the play card's wrapper
+(`PlayCard.tsx`) in a zero-height slot at `top-full`, not inside the board: below lg that wrapper is
+sticky, so the callout rides with the pinned card and lands over whichever dice are on screen at
+any scroll depth; at lg the card is in flow and `lg:pt-32` puts it over the first row's faces.
+
 ```tsx
-<div className="relative">
-  <DiceBoard />
-  <ComboCallout text={handText} rank={handRank} visibleKey={handRolls} detail={`+${gained}`} className="items-start pt-14" />
+<div className="sticky ... lg:relative">
+  <PlayCardBody />
+  <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-full h-0">
+    <ComboCallout
+      text={handText}
+      rank={handRank}
+      visibleKey={rolls}
+      detail={`+${gained}`}
+      faces={faces}
+      members={members}
+      className="items-start pt-14 lg:pt-32"
+    />
+  </div>
 </div>
 ```
+
+### `<DiceRow faces members? size? tone? rollKey? className? testId? />` (`@/ui/DiceRow`)
+
+Not an fx piece, but the callout's companion: a row of mini `DieFace` tiles in content order, the
+`members` indexes ringed (`ring-2`) in `tone`, which is `'muted'` or `'rank-1'` to `'rank-7'` (the
+`RANK_RING_CLASS` table in `useRollPulse.ts`). `size` defaults to 28; `rollKey` (the roll count)
+makes the faces tumble on a change; `testId` lands on the `<ol>` (the play card passes
+`last-roll-faces`).
 
 ### `useCountUp(targetText: string): string`
 
@@ -189,10 +217,12 @@ const sound = useGameStore(selectSound)
 ## Where to wire what (checklist for the screen builders)
 
 - `DieFace`: `fill-die stroke-die-edge` body, `fill-die-pip` pips, `fill-die-raised` on raised faces.
-- `PointsPanel`: `text-points text-amber-text` with `useCountUp`. Keep `data-testid="points"`.
-- `RollControls`: `play('roll')` in `roll()`. Keep `roll-button` and `auto-roll-switch`.
-- `DiceBoard` or `GameScreen`: a `relative` wrapper with `<ComboCallout>`, `<Particles kind="gold">`
-  for four or five of a kind and ascension, floating `+N` from the dice on every roll.
+- `PlayCard` (`PointsPanel.tsx`, `RollControls.tsx`, `LastRoll.tsx` hold its pieces): `text-points
+  text-amber-text` with `useCountUp`, `play('roll')` in `roll()`, a `DiceRow` for the last roll.
+  Keep `points`, `roll-button`, `auto-roll-switch`, `last-roll-faces` and `breakdown-toggle`.
+- `PlayCard`: `<BenchCallout>` (the wired `<ComboCallout>`) in the sticky wrapper's `top-full` slot.
+- `DiceBoard`: a `relative` wrapper with `<Particles kind="gold">` for four or five of a kind and
+  ascension, floating `+N` from the dice on every roll.
 - `DieCard`: `play('buy')`, `play('level')`, `play('ascend')`; `<Particles kind="gold">` on ascend.
 - Charms and luck panels: `play('charm')`, `play('luck')`, `<Particles kind="cool">`, `glow-cool` on
   the draft offer, `text-rarity-*` for rarity.

@@ -1,9 +1,12 @@
 // The game screen: a header (title, the luck badge, settings), the banners, then the tab shell.
 // Phones show one section at a time under a bottom tab bar (Bench, Hands, Charms, Luck,
 // Marks); from lg the bench sits left (3/5) and the active side panel right (2/5) under a
-// segmented strip. The active tab persists in localStorage. The draft dialog, the mark toast and
-// the settings, recovery and away dialogs live here so every tab sees them. A quiet loading state
-// holds the page until boot() has loaded the save, so the first paint is the real game.
+// segmented strip. Below lg the header is sticky and the play card pins under it (its top offset is
+// the header's height, see PlayCard.tsx), so a phone can roll and read the result from any scroll
+// depth; at lg and up both sit in flow. The active tab persists in localStorage. The draft dialog,
+// the mark toast and the settings, recovery and away dialogs live here so every tab sees them. A
+// quiet loading state holds the page until boot() has loaded the save, so the first paint is the
+// real game.
 import { useState } from 'react'
 import { SettingsIcon } from 'lucide-react'
 import { selectBooted, selectDraftOpen, selectHasNewTrophy } from '@/app/selectors'
@@ -16,11 +19,9 @@ import { CharmsPanel, DraftDialog, LuckPanel, StatsPanel, TrophiesPanel, TrophyT
 import { CombosPanel } from './CombosPanel'
 import { DiceBoard } from './DiceBoard'
 import { ErrorBanner } from './ErrorBanner'
-import { LastRoll } from './LastRoll'
 import { OfflineModal } from './OfflineModal'
-import { PointsPanel } from './PointsPanel'
+import { PlayCard } from './PlayCard'
 import { RecoveryDialog } from './RecoveryDialog'
-import { RollControls } from './RollControls'
 import { SettingsDialog } from './SettingsDialog'
 import { TabBar, type SideTabId, type TabId } from './TabBar'
 import { UpdateBanner } from './UpdateBanner'
@@ -90,9 +91,10 @@ export function GameScreen() {
   }
 
   return (
-    <div className="min-h-dvh bg-background pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(4.5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] text-foreground lg:pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="min-h-dvh bg-background pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(4.5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] text-foreground lg:pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <header className="flex items-center justify-between">
+        {/* Sticky below lg: 44 px of content under the safe-area top padding, 8 px under. PlayCard.tsx pins at exactly that height. */}
+        <header className="sticky top-0 z-30 flex items-center justify-between bg-background pt-[max(1rem,env(safe-area-inset-top))] pb-2 lg:static">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold tracking-tight">Nice Dice</h1>
             {luckTotal > 0 && (
@@ -124,10 +126,8 @@ export function GameScreen() {
         {booted ? (
           <div className="lg:grid lg:grid-cols-5 lg:items-start lg:gap-6">
             <main className={cn('flex flex-col gap-4 lg:col-span-3', tab !== 'table' && 'hidden lg:flex')}>
-              <PointsPanel />
-              <RollControls />
+              <PlayCard />
               <DiceBoard />
-              <LastRoll />
             </main>
             <aside aria-label="Side panel" className={cn('flex flex-col gap-4 lg:col-span-2', tab === 'table' && 'hidden lg:flex')}>
               <TabBar variant="strip" tabs={SIDE_TAB_IDS} active={side} onChange={choose} badges={badges} className="hidden lg:flex" />

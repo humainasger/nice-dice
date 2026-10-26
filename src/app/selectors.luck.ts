@@ -74,8 +74,8 @@ export function describeLuckEffect(def: LuckUpgradeDef, level: number): string {
       return `${value} more charm survives a luck reset per level, rarest first${owned ? `, now ${value * level} kept` : ''}`
     case 'steady_hands':
       return owned
-        ? 'Auto-level is yours: the switch sits in the dice board header'
-        : 'Unlocks the auto-level switch in the dice board header'
+        ? "Auto-level is yours: the switch sits in the bench's Automation sheet"
+        : "Unlocks the auto-level switch in the bench's Automation sheet"
   }
 }
 

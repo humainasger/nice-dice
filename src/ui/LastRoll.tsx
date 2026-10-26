@@ -1,51 +1,49 @@
-// The last roll as a line: the sides as small faces (printed values when raised), the sum of the
-// printed values and what it earned, the hand when there was one in its rank colour, and the
-// lifetime roll count.
+// The last-roll row of the play card: the rolled dice as a row of mini faces (the dice that form
+// the hand ringed in its colour), the hand name with its multiplier ("FULL HOUSE 7x", muted "no
+// hand" when none) and the gain "+12.3K". "Roll to begin" before the first roll. The faces and the
+// hand's member indexes arrive as arrays through useShallow; the hand reads from the sides, so the
+// row shows sides, not printed values.
 import {
   selectHandRank,
   selectHandText,
   selectLastGainedText,
-  selectLastRollFaces,
-  selectLastRollValues,
+  selectLastRollFaceList,
+  selectLastRollMemberList,
   selectRolls,
 } from '@/app/selectors'
-import { useGameStore } from '@/app/store'
+import { useGameStore, useShallow } from '@/app/store'
 import { cn } from '@/lib/utils'
-import { DieFace } from './DieFace'
+import { DiceRow } from './DiceRow'
 import { RANK_TEXT_CLASS } from './useRollPulse'
 
-export function LastRoll() {
-  const faces = useGameStore(selectLastRollFaces)
-  const values = useGameStore(selectLastRollValues)
-  const gained = useGameStore(selectLastGainedText)
+export function LastRollRow() {
+  const faces = useGameStore(useShallow(selectLastRollFaceList))
+  const members = useGameStore(useShallow(selectLastRollMemberList))
   const rolls = useGameStore(selectRolls)
+  const gained = useGameStore(selectLastGainedText)
   const handText = useGameStore(selectHandText)
   const handRank = useGameStore(selectHandRank)
 
-  if (faces === '') {
-    return <p className="text-center text-sm text-muted-foreground">No rolls yet. Press Roll, or Space on a keyboard.</p>
+  if (faces.length === 0) {
+    return <p className="flex min-h-[30px] items-center text-sm text-muted-foreground">Roll to begin</p>
   }
 
-  const sides = faces.split(' ').map(Number)
-  const printed = values.split(' ').map(Number)
   return (
-    <section
-      aria-label="Last roll"
-      className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground"
-    >
-      <span>Last roll</span>
-      <span className="flex items-center gap-1" aria-hidden="true">
-        {sides.map((side, i) => (
-          <DieFace key={i} face={side} value={printed[i] ?? side} size={24} />
-        ))}
-      </span>
-      <span>
-        {printed.join(' + ')} for <span className="font-medium text-foreground tabular">+{gained}</span> points
-      </span>
-      {handText !== '' && (
+    <div role="group" aria-label="Last roll" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <DiceRow
+        faces={faces}
+        members={members}
+        size={28}
+        tone={handRank > 0 ? `rank-${handRank}` : 'muted'}
+        rollKey={rolls}
+        testId="last-roll-faces"
+      />
+      {handText !== '' ? (
         <span className={cn('font-semibold tracking-wide tabular', RANK_TEXT_CLASS[handRank] ?? '')}>{handText}</span>
+      ) : (
+        <span className="text-muted-foreground">no hand</span>
       )}
-      <span className="tabular">· {rolls} rolls in total</span>
-    </section>
+      <span className="ml-auto font-semibold text-foreground tabular">+{gained}</span>
+    </div>
   )
 }

@@ -59,7 +59,7 @@ export function TabBar({ tabs, active, onChange, variant, badges, className }: T
                 data-testid={`tab-${id}`}
                 onClick={() => onChange(id)}
                 className={cn(
-                  'relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[0.7rem] font-medium transition-colors select-none touch-manipulation',
+                  'relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-xs font-medium transition-colors select-none touch-manipulation',
                   selected ? 'text-amber-text' : 'text-muted-foreground hover:text-foreground',
                 )}
               >

@@ -175,7 +175,7 @@ Purpose: what spendable luck buys. Table `src/content/luckUpgrades.ts`, seven ca
 | `keen_eye` | Keen Eye | 5 | 2, 4, 6, 9, 14 | every hand multiplier x(1 + 0.15 x level) (x1.75 at the cap) |
 | `lucky_draw` | Lucky Draw | 2 | 4, 8 | +1 charm in every draft offer (five at the cap) |
 | `memory` | Memory | 3 | 5, 10, 20 | one more charm survives a luck reset, highest rarity first |
-| `steady_hands` | Steady Hands | 1 | 3 | auto-level: once per simulated second (`rules.luck.autoLevelEveryMs` 1000) buy the cheapest affordable die level, then the next die when affordable; a switch in the dice board header, on once bought (`autoLevel` in the save, command `setAutoLevel`) |
+| `steady_hands` | Steady Hands | 1 | 3 | auto-level: once per simulated second (`rules.luck.autoLevelEveryMs` 1000) buy the cheapest affordable die level, then the next die when affordable; a switch in the Automation sheet on the bench, on once bought (`autoLevel` in the save, command `setAutoLevel`) |
 
 Everything maxed costs 185 luck, about the fifth or sixth reset of an active player. The sim bot buys by income lift per luck right after each reset: Deep Pockets and Quick Hands first, then Keen Eye and Head Start, Memory and Lucky Draw once the resets pay 20 or more.
 

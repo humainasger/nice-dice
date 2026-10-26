@@ -1,12 +1,14 @@
 // The combo callout: "FULL HOUSE 9.6x" slams in over the dice when `visibleKey` changes, holds
-// for 900 ms, fades for 250 ms and unmounts, with the points gained riding under it when given.
-// Colour and size follow the hand rank, 1 (pair) to 7 (five of a kind): the loudest thing on the
-// screen, sized so the longest hand name still fits a 390 px phone on one line. Positioned
-// absolutely over its parent (which must be position: relative); pass `items-start pt-*` in
-// className to pin it to the first row of dice when the parent is taller than the viewport.
-// aria-hidden because the last-roll line already carries the hand for screen readers.
+// for 900 ms, fades for 250 ms and unmounts, with the rolled faces as a row of mini dice (the hand's
+// members ringed) and the points gained riding under it when given. Colour and size follow the hand
+// rank, 1 (pair) to 7 (five of a kind): the loudest thing on the screen, sized so the longest hand
+// name still fits a 390 px phone on one line. Positioned absolutely over its parent (which must be
+// position: relative); pass `items-start pt-*` in className to pin it to the first row of dice when
+// the parent is taller than the viewport. aria-hidden because the play card's last-roll row already
+// carries the faces and the hand for screen readers.
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { DiceRow } from '@/ui/DiceRow'
 
 export const CALLOUT_HOLD_MS = 900
 export const CALLOUT_FADE_MS = 250
@@ -20,6 +22,10 @@ interface ComboCalloutProps {
   readonly visibleKey: number
   /** A second, smaller line under the hand: the points gained, "+1.2K". */
   readonly detail?: string
+  /** The rolled sides in content order, shown as 28 px dice between the hand and the detail. */
+  readonly faces?: readonly number[]
+  /** Indexes into faces that form the hand (handMembers in src/core); those dice wear the rank ring. */
+  readonly members?: readonly number[]
   readonly className?: string
 }
 
@@ -45,7 +51,7 @@ interface Phase {
   readonly stage: 'fading' | 'done'
 }
 
-export function ComboCallout({ text, rank, visibleKey, detail, className }: ComboCalloutProps) {
+export function ComboCallout({ text, rank, visibleKey, detail, faces, members, className }: ComboCalloutProps) {
   /** The key at mount: that one never shows. */
   const [first] = useState(visibleKey)
   /** Where the current key's timeline stands; null while it is still fresh. */
@@ -67,7 +73,7 @@ export function ComboCallout({ text, rank, visibleKey, detail, className }: Comb
   if (!live) return null
   return (
     <div aria-hidden="true" className={cn('pointer-events-none absolute inset-0 z-10 flex items-center justify-center', className)}>
-      <span
+      <div
         key={visibleKey}
         className={cn(
           'slam-in flex flex-col items-center rounded-2xl bg-card/95 px-5 py-2 font-bold tracking-tight whitespace-nowrap ring-1 ring-foreground/10 shadow-soft',
@@ -76,10 +82,13 @@ export function ComboCallout({ text, rank, visibleKey, detail, className }: Comb
         )}
       >
         <span className="leading-none">{text}</span>
+        {faces !== undefined && faces.length > 0 && (
+          <DiceRow faces={faces} members={members} size={28} tone={`rank-${rank}`} className="mt-2" />
+        )}
         {detail !== undefined && detail !== '' && (
           <span className="mt-1 text-lg leading-none font-semibold text-foreground/80 tabular sm:text-2xl">{detail}</span>
         )}
-      </span>
+      </div>
     </div>
   )
 }

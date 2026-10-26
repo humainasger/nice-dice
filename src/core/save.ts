@@ -9,18 +9,18 @@
 // points, luckTotal >= luck, faces consistent with their upgrades and cap, elapsedMs below
 // intervalMs, auto-roll enabled only once unlocked) are what the schema does refuse, so that every
 // state parseSave accepts is one advance and dispatch keep loadable. Ids of content rows that no
-// longer exist (dice, combos, charms, trophies, luck upgrades) are dropped on load instead of
-// refused, and a luck upgrade level above its content cap is clamped.
+// longer exist (dice, combos, charms, trophies, luck upgrades, mastery) are dropped on load
+// instead of refused, and a luck upgrade level above its content cap is clamped.
 import { z } from 'zod'
 import { content, idSchema, type ComboId, type Id, type LuckUpgradeId } from '@/content'
-import { isCharmId, isComboId, isLuckUpgradeId, isTrophyId, luckUpgradeDef, rules } from './defs'
+import { isCharmId, isComboId, isDieId, isLuckUpgradeId, isTrophyId, luckUpgradeDef, rules } from './defs'
 import { charmEffectsOf } from './formulas'
 import { bestHand } from './hands'
 import { N, type Num } from './num'
 import { createRng, restoreRng } from './rng'
 import type { DieState, Draft, GameState, Stats } from './state'
 
-export const SAVE_VERSION = 3 // literal-ok: the save format version, not a balance value
+export const SAVE_VERSION = 4 // literal-ok: the save format version, not a balance value
 
 /** The sides of a fresh die: 1 to sides. */
 export function defaultFaces(sides: number): number[] {
@@ -69,6 +69,8 @@ export function createInitialState(seed: number): GameState {
     luck: 0,
     luckTotal: 0,
     luckUpgrades: {},
+    mastery: {},
+    favour: 0,
     prestiges: 0,
     trophies: [],
     newTrophy: null,
@@ -183,6 +185,8 @@ const saveSchema = z
     luck: nonNegativeInt,
     luckTotal: nonNegativeInt,
     luckUpgrades: z.record(z.string(), nonNegativeInt),
+    mastery: z.record(z.string(), nonNegativeInt),
+    favour: nonNegativeInt,
     prestiges: nonNegativeInt,
     trophies: z.array(idSchema).refine((ids) => new Set(ids).size === ids.length, { message: 'trophy ids must be unique' }),
     newTrophy: idSchema.nullable(),
@@ -220,6 +224,15 @@ const saveSchema = z
 /** The plain JSON shape of a save: a GameState with every Num as N.serialize text. */
 export type SaveShape = z.input<typeof saveSchema>
 
+/** A string-keyed Partial record as the schema wants it: only the entries that hold a number. */
+function plainLevels(record: Readonly<Partial<Record<string, number>>>): Record<string, number> {
+  const plain: Record<string, number> = {}
+  for (const [id, level] of Object.entries(record)) {
+    if (level !== undefined) plain[id] = level
+  }
+  return plain
+}
+
 function toPlain(state: GameState): SaveShape {
   return {
     version: SAVE_VERSION,
@@ -249,6 +262,8 @@ function toPlain(state: GameState): SaveShape {
     luck: state.luck,
     luckTotal: state.luckTotal,
     luckUpgrades: { ...state.luckUpgrades },
+    mastery: plainLevels(state.mastery),
+    favour: state.favour,
     prestiges: state.prestiges,
     trophies: [...state.trophies],
     newTrophy: state.newTrophy,
@@ -315,8 +330,19 @@ function migrateV2(raw: unknown): unknown {
   return { ...raw, version: 3, luckTotal: raw['luck'], luckUpgrades: {} } // literal-ok: the version this migration produces
 }
 
+/**
+ * v3 to v4 (M5): the luck sinks. No die is mastered and Fortune's Favour is at level 0, so the
+ * save keeps exactly the multipliers it had; its spendable luck can go into the sinks straight
+ * away. Both fields would also default from the deep merge; they are set here so the migration
+ * states the shape it produces.
+ */
+function migrateV3(raw: unknown): unknown {
+  if (!isPlainObject(raw)) return raw
+  return { ...raw, version: 4, mastery: {}, favour: 0 } // literal-ok: the version this migration produces
+}
+
 /** Keyed by source version and applied in order up to SAVE_VERSION. */
-export const migrations: Readonly<Record<number, Migration>> = { 1: migrateV1, 2: migrateV2 }
+export const migrations: Readonly<Record<number, Migration>> = { 1: migrateV1, 2: migrateV2, 3: migrateV3 } // literal-ok: source save versions
 
 /** raw over defaults: objects merge key by key, anything else in raw (arrays included) wins outright. */
 function deepMerge(defaults: unknown, raw: unknown): unknown {
@@ -357,6 +383,15 @@ function alignLuckUpgrades(saved: Readonly<Record<string, number>>): Partial<Rec
     upgrades[id] = Math.min(level, luckUpgradeDef(id).maxLevel)
   }
   return upgrades
+}
+
+/** Only the entries whose key names a die still in content, above level 0. Mastery has no cap to clamp to. */
+function alignMastery(saved: Readonly<Record<string, number>>): Partial<Record<Id, number>> {
+  const mastery: Partial<Record<Id, number>> = {}
+  for (const [id, level] of Object.entries(saved)) {
+    if (isDieId(id) && level > 0) mastery[id] = level
+  }
+  return mastery
 }
 
 function fail(reason: ParseSaveReason, detail: string): ParseSaveResult {
@@ -437,6 +472,8 @@ export function parseSave(text: string): ParseSaveResult {
     luck: save.luck,
     luckTotal: save.luckTotal,
     luckUpgrades: alignLuckUpgrades(save.luckUpgrades),
+    mastery: alignMastery(save.mastery),
+    favour: save.favour,
     prestiges: save.prestiges,
     trophies: save.trophies.filter(isTrophyId),
     newTrophy: knownId(save.newTrophy),

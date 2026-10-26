@@ -1,6 +1,6 @@
 // The points panel: the big amber total counting up to each new value, the expected gain per roll
-// and per second, the multiplier breakdown as chips (dice, expected combo, charms, luck, trophies,
-// total) and the next die to buy. The count-up is decoration for sighted players: the tweened
+// and per second, the multiplier breakdown as chips (dice with mastery, expected hand, charms,
+// luck with favour, marks, total) and the next die to carve. The count-up is decoration for sighted players: the tweened
 // number is aria-hidden (no live region either, it changes every roll) and the true value sits in
 // a visually hidden span that carries the `points` test id, so screen readers and the smoke test
 // never catch a frame of the tween.
@@ -86,11 +86,11 @@ export function PointsPanel() {
         )}
       </p>
       <ul aria-label="Multiplier breakdown" className="mt-3 flex flex-wrap gap-1.5">
-        <Chip label="dice" value={b.dice} title="Sum of your dice's output multipliers" />
-        <Chip label="combo" value={b.combo} title="Expected best-hand multiplier over every roll of your dice" />
+        <Chip label="dice" value={b.dice} title="Sum of your dice's output multipliers, mastery included" />
+        <Chip label="hand" value={b.combo} title="Expected best-hand multiplier over every roll of your dice" />
         <Chip label="charms" value={b.charms} tone="cool" title="Points charms held this run" />
-        <Chip label="luck" value={b.luck} tone="cool" title="Lifetime luck, times Deep Pockets from the luck shop" />
-        <Chip label="trophies" value={b.trophies} tone="amber" title="Every trophy held" />
+        <Chip label="luck" value={b.luck} tone="cool" title="Lifetime luck, times Deep Pockets and Fortune's Favour from the Luck tab" />
+        <Chip label="marks" value={b.trophies} tone="amber" title="Every mark earned" />
         <Chip label="total" value={b.total} strong title="What one face point is worth, on average" />
       </ul>
       <p className="mt-2 text-xs text-muted-foreground">{nextUnlock}</p>

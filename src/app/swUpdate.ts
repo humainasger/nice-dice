@@ -2,6 +2,9 @@
 // prompt mode (docs/DECISIONS.md D11): a new build waits until the player accepts the reload, so a
 // deploy never yanks the page from under an open game. The game is saved synchronously first.
 // The worker also checks for a new build every hour, since an idle game can stay open for days.
+// The itch.io build (scripts/build-itch.mjs sets VITE_PLATFORM=itch) never registers the worker:
+// itch serves the game from its own CDN origin inside an iframe, where a cached shell would
+// outlive the upload that replaced it; docs/ITCH.md.
 import { registerSW } from 'virtual:pwa-register'
 import { saveSync } from './storage'
 import { setUi } from './store'
@@ -11,6 +14,7 @@ const UPDATE_CHECK_MS = 60 * 60 * 1000
 let update: ((reloadPage?: boolean) => Promise<void>) | null = null
 
 export function startServiceWorker(): void {
+  if (import.meta.env.VITE_PLATFORM === 'itch') return
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
   update = registerSW({
     immediate: true,

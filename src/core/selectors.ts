@@ -1,5 +1,6 @@
 // Pure read helpers for the UI and the sim. They return plain data computed from a state and the
-// content tables; nothing here changes state.
+// content tables; nothing here changes state. The M5 luck sinks ride inside the existing
+// multiplierBreakdown factors: mastery in `dice` (per die output), favour in `luck`.
 import {
   content,
   type CharmDef,
@@ -25,6 +26,8 @@ import {
   expectedPointsPerRoll,
   faceCap,
   faceUpgradeCost,
+  favourCost,
+  favourMultiplier,
   findDie,
   levelCap,
   levelCost,
@@ -35,6 +38,9 @@ import {
   luckOnReset,
   luckUpgradeCost,
   luckUpgradeLevel,
+  masteryCost,
+  masteryLevel,
+  masteryMultiplier,
   trophyMultiplier,
   unlockSatisfied,
 } from './formulas'
@@ -232,6 +238,41 @@ export function luckUpgradeView(state: GameState, id: LuckUpgradeId): LuckUpgrad
   return { def, level, maxLevel: def.maxLevel, nextCost, affordable: nextCost !== null && state.luck >= nextCost, maxed }
 }
 
+export interface MasteryView {
+  readonly level: number
+  /** Luck price of the next level (never null: mastery has no cap). */
+  readonly nextCost: number
+  /** The luck covers nextCost: a masterDie command would succeed. */
+  readonly affordable: boolean
+  /** The die's output factor from mastery: 1 + rules.mastery.step x level. */
+  readonly multiplier: Num
+}
+
+/** The mastery badge on a die card and its row in the Luck tab. Owned or not. Throws on an id that is not in content. */
+export function masteryView(state: GameState, id: Id): MasteryView {
+  dieDef(id)
+  const level = masteryLevel(state, id)
+  const nextCost = masteryCost(level)
+  return { level, nextCost, affordable: state.luck >= nextCost, multiplier: masteryMultiplier(level) }
+}
+
+export interface FavourView {
+  readonly level: number
+  /** Luck price of the next level (never null: favour has no cap). */
+  readonly nextCost: number
+  /** The luck covers nextCost: a buyFavour command would succeed. */
+  readonly affordable: boolean
+  /** The points factor from favour: 1 + rules.favour.step x level. */
+  readonly multiplier: Num
+}
+
+/** The Fortune's Favour row of the Luck tab. */
+export function favourView(state: GameState): FavourView {
+  const level = state.favour
+  const nextCost = favourCost(level)
+  return { level, nextCost, affordable: state.luck >= nextCost, multiplier: favourMultiplier(level) }
+}
+
 export interface DraftView {
   readonly progress: number
   readonly requirement: number
@@ -272,13 +313,13 @@ export function trophyView(state: GameState): TrophyView {
 }
 
 export interface MultiplierBreakdown {
-  /** Sum of the owned dice's output multipliers (what one face point is worth before the rest). */
+  /** Sum of the owned dice's output multipliers (what one face point is worth before the rest), each die's mastery included. */
   readonly dice: Num
   /** Mean best-hand multiplier over every pattern of the owned dice. */
   readonly combo: Num
   /** Product of the `points` charms. */
   readonly charms: Num
-  /** Everything luck gives: 1 + perPoint x luckTotal, times the deep_pockets upgrade. */
+  /** Everything luck gives: 1 + perPoint x luckTotal, times the deep_pockets upgrade, times Fortune's Favour. */
   readonly luck: Num
   readonly trophies: Num
   /** dice x combo x charms x luck x trophies. */

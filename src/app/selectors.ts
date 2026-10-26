@@ -92,7 +92,7 @@ export function formatBackupTime(savedAt: number, now: number): string {
   return formatDateTime(savedAt)
 }
 
-/** What a player must do for an unlock condition, as a clause: "own Second Die", "level First Die to 2". */
+/** What a player must do for an unlock condition, as a clause: "carve the Oak Die", "level the Pine Die to 2". Capitalise it for a sentence. */
 export function describeUnlock(unlock: UnlockCondition): string {
   switch (unlock.kind) {
     case 'always':
@@ -100,9 +100,9 @@ export function describeUnlock(unlock: UnlockCondition): string {
     case 'totalEarned':
       return `earn ${N.format(N.from(unlock.amount))} points in total`
     case 'owned':
-      return unlock.count <= 1 ? `own ${dieDef(unlock.id).name}` : `level ${dieDef(unlock.id).name} to ${unlock.count}`
+      return unlock.count <= 1 ? `carve the ${dieDef(unlock.id).name}` : `level the ${dieDef(unlock.id).name} to ${unlock.count}`
     case 'prestiges':
-      return unlock.count === 1 ? 'prestige once' : `prestige ${unlock.count} times`
+      return unlock.count === 1 ? 'press your luck once' : `press your luck ${unlock.count} times`
   }
 }
 
@@ -122,12 +122,12 @@ export const selectAutoProgress = (s: StoreState): number => {
   const { elapsedMs, intervalMs } = s.game.autoRoll
   return intervalMs > 0 ? Math.min(1, elapsedMs / intervalMs) : 0
 }
-/** The next die to buy: ready, or what unlocks it. "Every die owned" once the board is full. */
+/** The next die to carve: ready, or what unlocks it. "Every die is on the bench" once the board is full. */
 export const selectNextUnlockText = (s: StoreState): string => {
   const next = nextUnlock(s.game)
-  if (next === null) return 'Every die owned'
-  if (next.satisfied) return `${next.def.name} is ready to buy for ${N.format(levelCost(next.def, 0))}`
-  return `${next.def.name} unlocks: ${describeUnlock(next.unlock)}`
+  if (next === null) return 'Every die is on the bench'
+  if (next.satisfied) return `The ${next.def.name} is ready to carve for ${N.format(levelCost(next.def, 0))}`
+  return `${next.def.name}: ${describeUnlock(next.unlock)} to unlock`
 }
 
 // Offline summary. The "partly estimated" note is measured against the game's own auto-roll
@@ -437,3 +437,8 @@ export const selectDraftOpen = (s: StoreState): boolean => s.game.draft.offer !=
 export const selectHasNewTrophy = (s: StoreState): boolean => s.game.newTrophy !== null
 export const selectLuckUnlocked = (s: StoreState): boolean => luckPreview(s.game).unlocked
 export const selectLuck = (s: StoreState): number => s.game.luck
+
+// Title screen (src/ui/title)
+export const selectTitleDismissed = (s: StoreState): boolean => s.ui.titleDismissed
+/** A game worth continuing is loaded: boot finished and it has rolled or prestiged. False means "Start carving". */
+export const selectHasSave = (s: StoreState): boolean => s.ui.booted && (s.game.rolls > 0 || s.game.prestiges > 0)

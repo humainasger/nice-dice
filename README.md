@@ -1,6 +1,6 @@
 # Nice Dice
 
-Nice Dice is a browser dice incremental in the spirit of Idle Dice: roll, level and ascend dice, chase poker-hand combos, edit die faces. Built mostly by Claude Code, see `PLAN.md` for the reasoning.
+Nice Dice is a browser idle game about a dicewright: carve dice from pine to obsidian, roll them on the bench for points, refine them, chase poker hands and press your luck. In the spirit of Idle Dice, with die-face editing as the twist and a lamp-lit workshop instead of a casino. Built mostly by Claude Code, see `PLAN.md` for the reasoning.
 
 Stack: TypeScript 7 strict, Vite 8, React 19, Zustand 5, Tailwind 4, shadcn/ui, break_infinity.js, Vitest, pnpm. Deployed to GitHub Pages as a PWA.
 
@@ -25,4 +25,4 @@ Stack: TypeScript 7 strict, Vite 8, React 19, Zustand 5, Tailwind 4, shadcn/ui, 
 ## Licence and credits
 
 - Licence: TBD.
-- Credits: lucide (ISC) for interface icons, game-icons.net (CC BY 3.0) and Kenney (CC0) for flavour icons and audio. Attribution lines are added here as assets land.
+- Credits: lucide (ISC) for interface icons, Geist and Fraunces (OFL, self-hosted through Fontsource) for type, jsfxr for the procedural sounds. The dice, panels and the title scene are hand-coded SVG. game-icons.net (CC BY 3.0) and Kenney (CC0) stay the planned sources for any flavour icons or audio that land later; attribution lines are added here as assets land.

@@ -1,7 +1,8 @@
 // Property and example tests for the formulas: bulkCost against the summed levelCost,
 // maxAffordable as the largest affordable count, the level cap, rollPoints as the hand sum times
 // the best combo and the global multipliers, every multiplier source, the costs of the M3
-// systems, luck on reset, and every unlock condition kind.
+// systems, luck on reset, the M5 luck sinks (mastery and favour costs and multipliers), and every
+// unlock condition kind.
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content, type DieDef } from '@/content'
@@ -24,6 +25,8 @@ import {
   expectedPointsPerRoll,
   faceCap,
   faceUpgradeCost,
+  favourCost,
+  favourMultiplier,
   findDie,
   globalMultiplier,
   headStartLevel,
@@ -36,6 +39,9 @@ import {
   luckOnReset,
   luckUpgradeCost,
   luckUpgradeLevel,
+  masteryCost,
+  masteryLevel,
+  masteryMultiplier,
   maxAffordable,
   rollPoints,
   rollValues,
@@ -502,6 +508,75 @@ describe('luck upgrades', () => {
     expect(headStartLevel({ ...luckEffects(base), headStartLevel: 1e6 })).toBe(rules.ascension.level)
     expect(autoLevelAvailable(base)).toBe(false)
     expect(autoLevelAvailable(owning({ steady_hands: 1 }))).toBe(true)
+  })
+
+  it('luck sinks: mastery and favour cost tables are ceil of the content curves, whole luck, never falling', () => {
+    const series = (cost: (level: number) => number, count: number) => Array.from({ length: count }, (_, level) => cost(level))
+    // ceil(2 x 1.35 ^ level) and ceil(1.5 ^ level), the m5-theme.md sections 1 and 2 curves.
+    expect(series(masteryCost, 12)).toEqual([2, 3, 4, 5, 7, 9, 13, 17, 23, 30, 41, 55])
+    expect(series(favourCost, 12)).toEqual([1, 2, 3, 4, 6, 8, 12, 18, 26, 39, 58, 87])
+    expect(masteryCost(0)).toBe(rules.mastery.baseCost)
+    expect(favourCost(0)).toBe(1)
+    for (let level = 0; level < 200; level++) {
+      for (const cost of [masteryCost(level), favourCost(level)]) {
+        expect(Number.isInteger(cost) && cost >= 1).toBe(true)
+      }
+      if (level > 0) {
+        expect(masteryCost(level)).toBeGreaterThanOrEqual(masteryCost(level - 1))
+        expect(favourCost(level)).toBeGreaterThanOrEqual(favourCost(level - 1))
+      }
+    }
+    // Unbounded in principle; a level past the double range costs Infinity, which no purse covers.
+    expect(masteryCost(5000)).toBe(Infinity)
+    expect(favourCost(5000)).toBe(Infinity)
+  })
+
+  it('luck sinks: the multipliers are 1 + step x level', () => {
+    expect(N.eq(masteryMultiplier(0), 1)).toBe(true)
+    expect(close(masteryMultiplier(1), N.from(1 + rules.mastery.step))).toBe(true)
+    expect(close(masteryMultiplier(17), N.from(1 + 17 * rules.mastery.step))).toBe(true)
+    expect(N.eq(favourMultiplier(0), 1)).toBe(true)
+    expect(close(favourMultiplier(1), N.from(1 + rules.favour.step))).toBe(true)
+    expect(close(favourMultiplier(40), N.from(1 + 40 * rules.favour.step))).toBe(true)
+  })
+
+  it('mastery multiplies that die alone, on top of its level, ascensions and charms, owned dice only', () => {
+    const two: GameState = { ...base, dice: base.dice.map((die, i) => (i <= 1 ? { ...die, owned: true, level: 1 } : die)) }
+    const [first, second] = two.dice
+    if (!first || !second) throw new Error('setup')
+    expect(masteryLevel(two, die1.id)).toBe(0)
+    const mastered: GameState = { ...two, mastery: { [die1.id]: 3 } }
+    expect(masteryLevel(mastered, die1.id)).toBe(3)
+    expect(close(effectiveDieMultiplier(mastered, first), N.from(1 + 3 * rules.mastery.step))).toBe(true)
+    expect(N.eq(effectiveDieMultiplier(mastered, second), effectiveDieMultiplier(two, second))).toBe(true)
+    const stacked: GameState = { ...mastered, charms: ['oak_cup'], dice: mastered.dice.map((die, i) => (i === 0 ? { ...die, level: 7, ascensions: 2 } : die)) }
+    const expected = 7 * rules.ascension.multiplier ** 2 * charmDef('oak_cup').effect.value * (1 + 3 * rules.mastery.step)
+    expect(close(effectiveDieMultiplier(stacked, stacked.dice[0] ?? first), N.from(expected))).toBe(true)
+    // Unowned: zero, mastery or not (the level is kept for when the die comes back).
+    expect(N.isZero(effectiveDieMultiplier(mastered, { ...first, owned: false, level: 0 }))).toBe(true)
+    // Both dice at face 3: only the first die's share grows, by exactly its mastery factor.
+    const before = rollPoints(two, [3, 3])
+    const after = rollPoints(mastered, [3, 3])
+    const dieShare = N.div(N.mul(effectiveDieMultiplier(two, first), 3), N.add(N.mul(effectiveDieMultiplier(two, first), 3), N.mul(effectiveDieMultiplier(two, second), 3)))
+    const lift = N.add(1, N.mul(dieShare, 3 * rules.mastery.step))
+    expect(close(after, N.mul(before, lift))).toBe(true)
+    expect(close(expectedPointsPerRoll(mastered), N.mul(expectedPointsPerRoll(two), lift))).toBe(true)
+  })
+
+  it('favour multiplies every roll inside the luck factor, on top of lifetime luck and deep_pockets', () => {
+    const two: GameState = { ...base, dice: base.dice.map((die, i) => (i <= 1 ? { ...die, owned: true, level: 1 } : die)) }
+    const favoured: GameState = { ...two, favour: 4 }
+    const factor = 1 + 4 * rules.favour.step
+    expect(close(luckAndUpgradesMultiplier(favoured), N.from(factor))).toBe(true)
+    expect(close(globalMultiplier(favoured), N.from(factor))).toBe(true)
+    expect(close(rollPoints(favoured, [3, 5]), N.mul(rollPoints(two, [3, 5]), factor))).toBe(true)
+    expect(close(expectedPointsPerRoll(favoured), N.mul(expectedPointsPerRoll(two), factor))).toBe(true)
+    const everything: GameState = { ...favoured, luck: 0, luckTotal: 12, luckUpgrades: { deep_pockets: 2 }, trophies: ['first_roll'], charms: ['worn_felt'] }
+    const luckFactor = (1 + 12 * rules.luck.perPoint) * 1.2 ** 2 * factor
+    expect(close(luckAndUpgradesMultiplier(everything), N.from(luckFactor))).toBe(true)
+    expect(close(globalMultiplier(everything), N.from(luckFactor * rules.trophy.multiplier * 1.25))).toBe(true)
+    // luckMultiplier itself (the Luck tab summary) stays 1 + perPoint x luckTotal.
+    expect(close(luckMultiplier(everything), N.from(1 + 12 * rules.luck.perPoint))).toBe(true)
   })
 
   it('charmsKept keeps the rarest charms first, pick order on ties, and the whole list when the count covers it', () => {

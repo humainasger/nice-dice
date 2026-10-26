@@ -3,7 +3,7 @@
 // rules is the content rules object.
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
-import { charmDef, comboDef, combosByStrength, dieDef, isCharmId, isComboId, isTrophyId, rules, trophyDef } from './defs'
+import { charmDef, comboDef, combosByStrength, dieDef, isCharmId, isComboId, isDieId, isTrophyId, rules, trophyDef } from './defs'
 
 describe('defs', () => {
   it('return the content row for every id', () => {
@@ -21,6 +21,8 @@ describe('defs', () => {
   })
 
   it('id predicates agree with the tables', () => {
+    expect(isDieId('die_1')).toBe(true)
+    expect(isDieId('pair')).toBe(false)
     expect(isComboId('pair')).toBe(true)
     expect(isComboId('die_1')).toBe(false)
     expect(isCharmId('worn_felt')).toBe(true)
@@ -46,5 +48,7 @@ describe('rules', () => {
     expect(rules.autoRoll.unlock).toEqual({ kind: 'owned', id: 'die_1', count: 2 })
     expect(rules.offline).toEqual({ tickMs: 100, maxTicks: 100000, capMs: 8 * 60 * 60 * 1000, minAwayMs: 10000, foregroundCatchupMs: 60000 })
     expect(rules.ascension).toEqual({ level: 100, multiplier: 100, costMultiplier: 400 })
+    expect(rules.mastery).toEqual({ baseCost: 2, costGrowth: 1.35, step: 0.1 })
+    expect(rules.favour).toEqual({ costGrowth: 1.5, step: 0.05 })
   })
 })

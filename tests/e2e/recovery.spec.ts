@@ -3,7 +3,7 @@
 // backup slot or starts fresh; nothing runs or saves until then, and the damaged save sits under
 // a quarantine key either way.
 import { expect, test } from '@playwright/test'
-import { QUARANTINE_PREFIX, SAVE_KEY, backupKey, clearSave, leaveGame, openGame, readMirror, readSaves, restamp, rollTimes, seedSaves } from './helpers'
+import { QUARANTINE_PREFIX, SAVE_KEY, backupKey, clearSave, continueFromTitle, leaveGame, openGame, readMirror, readSaves, restamp, rollTimes, seedSaves } from './helpers'
 
 const GARBAGE = 'garbage{{{'
 
@@ -31,6 +31,8 @@ test('a damaged save opens the recovery dialog and a backup slot can be restored
   await page.getByTestId('recovery-restore-0').click()
 
   await expect(dialog).toHaveCount(0)
+  // The title stays up until Continue; the restored game is behind it.
+  await continueFromTitle(page)
   await expect(page.getByTestId('roll-button')).toBeVisible()
   await expect(page.getByTestId('points')).toHaveText(points)
   // The restored game is saved and the damaged copy is kept under quarantine.
@@ -58,6 +60,7 @@ test('a damaged save with no backup offers a fresh start and keeps the damaged c
   await page.getByTestId('recovery-fresh').click()
 
   await expect(dialog).toHaveCount(0)
+  await continueFromTitle(page)
   await expect(page.getByTestId('roll-button')).toBeVisible()
   await expect(page.getByTestId('points')).toHaveText('0')
   await expect(page.getByTestId('error-banner')).toHaveCount(0)

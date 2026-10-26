@@ -34,6 +34,7 @@ function storeState(game = createInitialState(7)): StoreState {
       updateReady: false,
       draftDismissed: false,
       trophyQueue: [],
+      titleDismissed: false,
     },
   }
 }
@@ -110,8 +111,8 @@ describe('luck selectors', () => {
 
 describe('charms headline', () => {
   it('says the charms return, not open, after a luck reset', () => {
-    expect(charmsLockedHeadline(0)).toBe('Charms open after your first ascension.')
-    expect(charmsLockedHeadline(1)).toBe('Charms return after your first ascension of this run.')
+    expect(charmsLockedHeadline(0)).toBe('Charms open after your first refinement.')
+    expect(charmsLockedHeadline(1)).toBe('Charms return after your first refinement of this run.')
   })
 })
 

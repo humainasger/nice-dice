@@ -1,11 +1,11 @@
-// A bottom toast for newly earned trophies, one at a time. The store queues every trophy a state
+// A bottom toast for newly earned marks (trophies in code), one at a time. The store queues every trophy a state
 // change awards (ui.trophyQueue); the toast shows the head, plays the trophy sound, and shifts it
 // off after TOAST_MS or on tap, so two trophies from one roll are shown one after another. The
 // store clears the core's newTrophy when the queue drains. The last trophy shown stays in local
 // state so the toast can fade out after the queue is already empty. Below lg it sits above the
 // fixed bottom tab bar (56 px plus the safe area) instead of on top of it.
 import { useEffect, useState } from 'react'
-import { TrophyIcon } from 'lucide-react'
+import { StampIcon } from 'lucide-react'
 import { play } from '@/app/audio'
 import { selectTrophyToastDescription, selectTrophyToastId, selectTrophyToastName } from '@/app/selectors.meta'
 import { shiftTrophy, useGameStore } from '@/app/store'
@@ -58,10 +58,10 @@ export function TrophyToast() {
         )}
       >
         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber text-primary-foreground">
-          <TrophyIcon className="size-5" />
+          <StampIcon className="size-5" />
         </span>
         <span className="flex min-w-0 flex-col">
-          <span className="text-[0.65rem] font-medium tracking-wide text-amber-text uppercase">Trophy</span>
+          <span className="text-[0.65rem] font-medium tracking-wide text-amber-text uppercase">Mark</span>
           <span className="font-medium leading-snug">{shown.name}</span>
           <span className="text-xs text-muted-foreground">{shown.description}</span>
         </span>

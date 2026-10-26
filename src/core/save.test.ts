@@ -1,7 +1,7 @@
 // The save layer: the initial state, exact serialize/parse round trips via N.serialize, future
 // versions rejected, invalid JSON and schema failures reported rather than thrown, defaults merged
 // under missing fields, the M3 invariants, and the lists aligned to content (dice, combos, charms,
-// trophies, the draft offer).
+// trophies, the draft offer, luck upgrades, mastery).
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content, LUCK_UPGRADE_IDS } from '@/content'
@@ -64,6 +64,8 @@ const command: fc.Arbitrary<Command> = fc.oneof(
   fc.constant<Command>({ type: 'clearNewTrophy' }),
   fc.constantFrom(...LUCK_UPGRADE_IDS).map((id): Command => ({ type: 'buyLuckUpgrade', id })),
   fc.boolean().map((enabled): Command => ({ type: 'setAutoLevel', enabled })),
+  fc.constantFrom(...ids).map((id): Command => ({ type: 'masterDie', id })),
+  fc.constant<Command>({ type: 'buyFavour' }),
 )
 const step: fc.Arbitrary<Step> = fc.oneof(
   command.map((c): Step => ({ kind: 'command', command: c })),
@@ -106,6 +108,8 @@ describe('createInitialState', () => {
     expect(state.luck).toBe(0)
     expect(state.luckTotal).toBe(0)
     expect(state.luckUpgrades).toEqual({})
+    expect(state.mastery).toEqual({})
+    expect(state.favour).toBe(0)
     expect(state.prestiges).toBe(0)
     expect(state.trophies).toEqual([])
     expect(state.newTrophy).toBeNull()
@@ -274,6 +278,12 @@ describe('parseSave failures', () => {
       ['luck above luckTotal', (s) => void ((s['luck'] = 3), (s['luckTotal'] = 1)), /^luckTotal: must be at least luck/],
       ['negative luck upgrade level', (s) => void (s['luckUpgrades'] = { deep_pockets: -1 }), /^luckUpgrades\.deep_pockets: /],
       ['luck upgrades not an object', (s) => void (s['luckUpgrades'] = ['deep_pockets']), /^luckUpgrades: /],
+      ['negative mastery level', (s) => void (s['mastery'] = { die_1: -1 }), /^mastery\.die_1: /],
+      ['fractional mastery level', (s) => void (s['mastery'] = { die_2: 1.5 }), /^mastery\.die_2: /],
+      ['mastery not an object', (s) => void (s['mastery'] = ['die_1']), /^mastery: /],
+      ['negative favour', (s) => void (s['favour'] = -1), /^favour: /],
+      ['fractional favour', (s) => void (s['favour'] = 2.5), /^favour: /],
+      ['favour as a string', (s) => void (s['favour'] = '3'), /^favour: /],
       ['autoLevel as a string', (s) => void (s['autoLevel'] = 'on'), /^autoLevel: /],
       ['negative prestiges', (s) => void (s['prestiges'] = -1), /^prestiges: /],
       ['duplicate trophies', (s) => void (s['trophies'] = ['first_roll', 'first_roll']), /^trophies: /],
@@ -357,6 +367,8 @@ describe('parseSave defaults and alignment', () => {
         delete save['luck']
         delete save['luckTotal']
         delete save['luckUpgrades']
+        delete save['mastery']
+        delete save['favour']
         delete save['prestiges']
         delete save['trophies']
         delete save['newTrophy']
@@ -379,6 +391,8 @@ describe('parseSave defaults and alignment', () => {
     expect(back.luck).toBe(0)
     expect(back.luckTotal).toBe(0)
     expect(back.luckUpgrades).toEqual({})
+    expect(back.mastery).toEqual({})
+    expect(back.favour).toBe(0)
     expect(back.prestiges).toBe(0)
     expect(back.trophies).toEqual([])
     expect(back.newTrophy).toBeNull()
@@ -387,6 +401,18 @@ describe('parseSave defaults and alignment', () => {
     expect(back.stats).toEqual(fresh.stats)
     // A missing run total heals to the lifetime total, the only default that keeps the purse under it.
     expect(N.eq(back.totalEarnedRun, back.totalEarned)).toBe(true)
+  })
+
+  it('aligns mastery to content: unknown die ids and zero levels drop, the rest stays uncapped', () => {
+    const back = parsedOk(
+      edited(state, (save) => {
+        save['mastery'] = { die_1: 4, die_9: 2, die_3: 0, die_5: 250 }
+        save['favour'] = 17
+      }),
+    )
+    expect(back.mastery).toEqual({ die_1: 4, die_5: 250 })
+    expect(back.favour).toBe(17)
+    expect(parsedOk(serializeState(back)).mastery).toEqual({ die_1: 4, die_5: 250 })
   })
 
   it('a missing lifetime luck heals to the luck held, the only default that keeps luck under it', () => {

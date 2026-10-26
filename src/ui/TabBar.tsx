@@ -1,13 +1,15 @@
 // The tab bar: tabs fixed to the bottom on phones (44 px targets and more, safe-area aware) or a
 // segmented strip of the side panels at the top of the desktop column. The screen passes the tab
-// ids to show and owns the active one; labels and lucide icons live here. A cool dot marks a tab
-// that wants attention (an open draft, a new trophy).
+// ids to show and owns the active one; labels and lucide icons live here. The ids are the M3
+// names (table, combos, trophies) so test ids and the stored tab never move; the labels follow the
+// dicewright fantasy (Bench, Hands, Charms, Luck, Marks). A cool dot marks a tab that wants
+// attention (an open draft, a new mark, luck to spend).
 import type { LucideIcon } from 'lucide-react'
-import { CloverIcon, Dice5Icon, GemIcon, LayersIcon, TrophyIcon } from 'lucide-react'
+import { CloverIcon, Dice5Icon, GemIcon, LayersIcon, StampIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type TabId = 'table' | 'combos' | 'charms' | 'luck' | 'trophies'
-/** The tabs that render in the desktop side column (everything but the table). */
+/** The tabs that render in the desktop side column (everything but the bench). */
 export type SideTabId = Exclude<TabId, 'table'>
 
 interface TabDef {
@@ -16,11 +18,11 @@ interface TabDef {
 }
 
 const TAB_DEFS: Readonly<Record<TabId, TabDef>> = {
-  table: { label: 'Table', Icon: Dice5Icon },
-  combos: { label: 'Combos', Icon: LayersIcon },
+  table: { label: 'Bench', Icon: Dice5Icon },
+  combos: { label: 'Hands', Icon: LayersIcon },
   charms: { label: 'Charms', Icon: GemIcon },
   luck: { label: 'Luck', Icon: CloverIcon },
-  trophies: { label: 'Trophies', Icon: TrophyIcon },
+  trophies: { label: 'Marks', Icon: StampIcon },
 }
 
 interface TabBarProps {

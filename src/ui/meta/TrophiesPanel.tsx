@@ -1,5 +1,6 @@
-// The Trophies tab: the count and total bonus, the trophies held (a check each, in the order
-// earned) and the ones still to earn with a progress line and a thin bar. Trophies never lock.
+// The Marks tab (trophies in code, a dicewright's maker's marks in copy): the count and total
+// bonus, the marks earned (a check each, in the order earned) and the ones still to earn with a
+// progress line and a thin bar. Marks never lock.
 import { useMemo } from 'react'
 import { CheckIcon, CircleIcon } from 'lucide-react'
 import { content, type Id, type TrophyDef } from '@/content'
@@ -62,7 +63,7 @@ export function TrophiesPanel() {
     <div data-testid="trophies-panel" className="flex flex-col gap-4">
       <PanelCard className="flex items-end justify-between gap-3">
         <div>
-          <PanelTitle>Trophies</PanelTitle>
+          <PanelTitle>Marks</PanelTitle>
           <p className="mt-1 text-3xl font-semibold tracking-tight tabular">
             {count} <span className="text-base font-normal text-muted-foreground">of {total}</span>
           </p>
@@ -79,7 +80,7 @@ export function TrophiesPanel() {
 
       {heldIds.length > 0 && (
         <PanelCard className="flex flex-col gap-1">
-          <PanelTitle>Held</PanelTitle>
+          <PanelTitle>Earned</PanelTitle>
           <ul className="divide-y divide-border/60">
             {heldIds.map((id) => (
               <HeldRow key={id} def={trophyDef(id)} />

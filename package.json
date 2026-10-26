@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:itch": "node scripts/build-itch.mjs",
     "preview": "vite preview",
     "lint": "oxlint",
     "typecheck": "tsc -b",
@@ -17,6 +18,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/geist": "^5.3.0",
     "break_infinity.js": "2.2.0",
     "class-variance-authority": "^0.7.1",

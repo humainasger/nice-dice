@@ -146,13 +146,14 @@ function observe(milestones: Milestones, state: GameState): void {
 
 /**
  * Whether the bot's round bought anything: a die, a level, a face, a hand upgrade, a charm pick, a
- * luck upgrade or a prestige. Ascensions count too, since in a round they come from levelling to
- * the cap. Rolls alone do not.
+ * luck upgrade, a mastery level, a favour level or a prestige. Ascensions count too, since in a
+ * round they come from levelling to the cap. Rolls alone do not.
  */
 export function purchased(before: GameState, after: GameState): boolean {
   if (after === before) return false
   if (after.prestiges !== before.prestiges) return true
   if (after.charms !== before.charms || after.luckUpgrades !== before.luckUpgrades || after.combos !== before.combos) return true
+  if (after.mastery !== before.mastery || after.favour !== before.favour) return true
   return after.dice.some((die, index) => {
     const was = before.dice[index]
     return (

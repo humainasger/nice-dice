@@ -7,7 +7,9 @@
 // share of its die's multiplier one more pip on one side amounts to. The greedy M3 rules: ascend
 // whenever a die can, pick the charm that lifts income most, prestige once luckOnReset is at least
 // 2 and 20 minutes have passed since the last prestige. The M4 rule (m4-luck.md section 4): right
-// after each luck reset, buy luck upgrades greedily by income lift per luck spent.
+// after each luck reset, buy luck upgrades greedily by income lift per luck spent. The M5 rule
+// (m5-theme.md section 3): once every luck upgrade is maxed, spend the rest on the unbounded sinks,
+// mastery per die and Fortune's Favour, by income lift per luck, measured on the run just finished.
 import { content, LUCK_UPGRADE_IDS, type LuckUpgradeEffectKind, type LuckUpgradeId } from '@/content'
 import {
   autoRollInterval,
@@ -20,9 +22,11 @@ import {
   effectiveDieMultiplier,
   expectedComboMultiplier,
   expectedPointsPerRoll,
+  favourView,
   levelsBuyable,
   luckOnReset,
   luckUpgradeView,
+  masteryView,
   N,
   type Command,
   type GameState,
@@ -291,12 +295,77 @@ export function buyLuckUpgrades(state: GameState): GameState {
   return next
 }
 
-/** The round every bot shares: prestige (then the luck shop), ascend, draft, then shop. */
+export interface LuckSinkPurchase {
+  readonly command: Command
+  /** Relative income lift of the next level, measured on the reference state. */
+  readonly lift: number
+  /** Lift per luck spent; the rank key. */
+  readonly ratio: number
+  readonly cost: number
+  readonly affordable: boolean
+}
+
+/**
+ * Every luck sink on sale, ranked by income lift per luck, best first: the next mastery level of
+ * each content die and the next Fortune's Favour level. The lift is measured on `reference` (the
+ * state itself by default) carrying the state's own mastery and favour levels: right after a reset
+ * only die_1 is owned, so the bot judges the sinks on the run it just finished, where every die was
+ * in play. A sink that lifts nothing on the reference (a die the reference never owned) is left
+ * out. Ties go to content order, favour last.
+ */
+export function rankLuckSinks(state: GameState, reference: GameState = state): LuckSinkPurchase[] {
+  const measured: GameState = reference === state ? state : { ...reference, mastery: state.mastery, favour: state.favour }
+  const base = incomeOf(measured)
+  const found: LuckSinkPurchase[] = []
+  const consider = (command: Command, trial: GameState, cost: number) => {
+    if (N.isZero(base) || !Number.isFinite(cost) || cost <= 0) return
+    const lift = N.toNumber(N.div(incomeOf(trial), base)) - 1
+    if (!(lift > 0)) return
+    found.push({ command, lift, ratio: lift / cost, cost, affordable: state.luck >= cost })
+  }
+  for (const die of state.dice) {
+    const view = masteryView(state, die.id)
+    consider({ type: 'masterDie', id: die.id }, { ...measured, mastery: { ...measured.mastery, [die.id]: view.level + 1 } }, view.nextCost)
+  }
+  const favour = favourView(state)
+  consider({ type: 'buyFavour' }, { ...measured, favour: favour.level + 1 }, favour.nextCost)
+  return found.sort((a, b) => b.ratio - a.ratio)
+}
+
+/** Whether every luck upgrade sits at its cap, so the sinks are the only thing left to buy. */
+export function luckUpgradesMaxed(state: GameState): boolean {
+  return rankLuckUpgrades(state).length === 0
+}
+
+/**
+ * Buys the best affordable sink by lift per luck, re-ranking after each buy, until the luck runs
+ * out; nothing while a luck upgrade is still below its cap (the brief: sinks come after the seven
+ * upgrades max out, so the luck is saved for them).
+ */
+export function buyLuckSinks(state: GameState, reference: GameState = state): GameState {
+  if (!luckUpgradesMaxed(state)) return state
+  let next = state
+  for (let round = 0; round < MAX_PURCHASES_PER_ROUND; round++) {
+    const best = rankLuckSinks(next, reference).find((purchase) => purchase.affordable)
+    if (best === undefined) break
+    const after = dispatch(next, best.command)
+    if (after === next) break
+    next = after
+  }
+  return next
+}
+
+/** The luck shop round after a reset: the capped upgrades first, then the sinks once nothing capped is left to buy. */
+export function spendLuck(state: GameState, reference: GameState = state): GameState {
+  return buyLuckSinks(buyLuckUpgrades(state), reference)
+}
+
+/** The round every bot shares: prestige (then the luck shop, judged on the run just finished), ascend, draft, then shop. */
 function manage(state: GameState): GameState {
   let next = state
   if (shouldPrestige(state)) {
     next = dispatch(state, { type: 'prestige' })
-    if (next !== state) next = buyLuckUpgrades(next)
+    if (next !== state) next = spendLuck(next, state)
   }
   next = ascendAll(next)
   next = pickCharms(next)

@@ -185,15 +185,15 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
       <Separator />
 
       <section aria-labelledby="settings-game" className="flex flex-col gap-2">
-        <SectionTitle id="settings-game">Game</SectionTitle>
+        <SectionTitle id="settings-game">Bench</SectionTitle>
         <label htmlFor="auto-ascend" className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation">
           <span className="flex flex-col">
-            <span>Auto-ascend</span>
-            <span className="text-xs text-muted-foreground">A die at level 100 ascends on its own: level 1 again, output x100.</span>
+            <span>Auto-refine</span>
+            <span className="text-xs text-muted-foreground">A die at level 100 is refined on its own: back to level 1, output x100.</span>
           </span>
           <Switch
             id="auto-ascend"
-            aria-label="Auto-ascend"
+            aria-label="Auto-refine"
             data-testid="auto-ascend-switch"
             checked={autoAscend}
             onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}
@@ -306,11 +306,11 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
       <Separator />
 
       <section aria-labelledby="settings-reset" className="flex flex-col gap-2">
-        <SectionTitle id="settings-reset">Reset</SectionTitle>
+        <SectionTitle id="settings-reset">Start over</SectionTitle>
         {confirmingReset ? (
           <div className="flex flex-col gap-2">
             <label htmlFor="reset-confirm" className="text-sm">
-              Type {RESET_WORD} to start over. Points and dice go. Copy the export above first; it is the only way back.
+              Type {RESET_WORD} to clear the bench and start over. Everything goes. Copy the export above first; it is the only way back.
             </label>
             <input
               id="reset-confirm"

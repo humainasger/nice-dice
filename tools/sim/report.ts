@@ -55,6 +55,10 @@ export interface RunReport {
     readonly comboLevels: readonly number[]
     /** Level per luck upgrade at the horizon, in content order. */
     readonly luckUpgradeLevels: readonly number[]
+    /** Mastery level per die at the horizon, in content order. */
+    readonly masteryLevels: readonly number[]
+    /** Fortune's Favour level at the horizon. */
+    readonly favour: number
   }
 }
 
@@ -174,6 +178,8 @@ export function runReports(run: SimRun): RunReport[] {
         charms: state.charms.length,
         comboLevels: content.combos.map((def) => state.combos[def.id] ?? 0),
         luckUpgradeLevels: content.luckUpgrades.map((def) => state.luckUpgrades[def.id] ?? 0),
+        masteryLevels: content.dice.map((def) => state.mastery[def.id] ?? 0),
+        favour: state.favour,
       },
     }
   })
@@ -320,6 +326,8 @@ function runTable(group: readonly RunReport[]): string {
   row('Charms / luck / prestiges at end', (run) => `${run.end.charms} / ${run.end.luck} / ${run.end.prestiges}`)
   row('Lifetime luck at end', (run) => String(run.end.luckTotal))
   row('Luck upgrade levels at end', (run) => run.end.luckUpgradeLevels.join(' / '))
+  row('Mastery levels at end', (run) => run.end.masteryLevels.join(' / '))
+  row('Favour level at end', (run) => String(run.end.favour))
   row('Dead content', (run) => (run.deadContent.length === 0 ? 'none' : run.deadContent.join(', ')))
   return table(header, rows)
 }
@@ -351,7 +359,7 @@ export function renderMarkdown(report: BalanceReport): string {
     ),
   )
   parts.push(`Charms: ${report.content.charms.join('; ')}.`)
-  const { autoRoll, offline, ascension, combo, face, draft, luck, trophy } = report.content.rules
+  const { autoRoll, offline, ascension, combo, face, draft, luck, mastery, favour, trophy } = report.content.rules
   parts.push(
     [
       `Rules: auto-roll every ${autoRoll.baseIntervalMs} ms, unlocked by ${describeUnlock(autoRoll.unlock)}.`,
@@ -359,7 +367,8 @@ export function renderMarkdown(report: BalanceReport): string {
       `Ascension at level ${ascension.level}, x${ascension.multiplier}, level costs x${ascension.costMultiplier} per ascension. Combo upgrades ${combo.upgradeCost} x ${combo.costGrowth}^level, +${combo.step} of base per level.`,
       `Faces: cap ${face.cap}, cost baseCost x ${face.costFactor} x ${face.costGrowth}^n, from level ${face.unlockLevel}.`,
       `Draft: ceil(${draft.growth}^taken) ascensions, ${draft.offerSize} offered, weights ${draft.rarityWeights.common}/${draft.rarityWeights.rare}/${draft.rarityWeights.epic}.`,
-      `Luck: from ${luck.threshold} run points, floor(${luck.perDecade} x log10(run / threshold)) + 1 per reset, +${luck.perPoint} points multiplier per lifetime luck, auto-level every ${luck.autoLevelEveryMs} ms. Trophies: x${trophy.multiplier} each.`,
+      `Luck: from ${luck.threshold} run points, floor(${luck.perDecade} x log10(run / threshold)) + 1 per reset, +${luck.perPoint} points multiplier per lifetime luck, auto-level every ${luck.autoLevelEveryMs} ms.`,
+      `Luck sinks: mastery ceil(${mastery.baseCost} x ${mastery.costGrowth}^level) luck for +${mastery.step} of a die's output per level, favour ceil(${favour.costGrowth}^level) luck for +${favour.step} of all points per level, both uncapped. Trophies: x${trophy.multiplier} each.`,
     ].join(' '),
   )
   parts.push('## Pacing windows (GDD section 12 proposals, m3-game.md and m4-luck.md section 3, active bot)')
@@ -446,6 +455,10 @@ export function diffReports(before: BalanceReport, after: BalanceReport): string
     if (old.end.rolls !== run.end.rolls) changes.push(`rolls ${old.end.rolls} -> ${run.end.rolls}`)
     if (old.end.prestiges !== run.end.prestiges) changes.push(`prestiges ${old.end.prestiges} -> ${run.end.prestiges}`)
     if ((old.end.luckTotal ?? null) !== run.end.luckTotal) changes.push(`lifetime luck ${old.end.luckTotal ?? 'none'} -> ${run.end.luckTotal}`)
+    const oldMastery = (old.end.masteryLevels ?? []).join(' / ')
+    const newMastery = run.end.masteryLevels.join(' / ')
+    if (oldMastery !== newMastery) changes.push(`mastery levels [${oldMastery || 'none'}] -> [${newMastery}]`)
+    if ((old.end.favour ?? null) !== run.end.favour) changes.push(`favour ${old.end.favour ?? 'none'} -> ${run.end.favour}`)
     if (old.deadContent.join(',') !== run.deadContent.join(',')) {
       changes.push(`dead content [${old.deadContent.join(', ')}] -> [${run.deadContent.join(', ')}]`)
     }

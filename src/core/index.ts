@@ -4,7 +4,7 @@
 export * from './num'
 export * from './rng'
 export * from './state'
-export { dieDef, comboDef, charmDef, trophyDef, luckUpgradeDef, isComboId, isCharmId, isTrophyId, isLuckUpgradeId, combosByStrength, rarityOrder } from './defs'
+export { dieDef, comboDef, charmDef, trophyDef, luckUpgradeDef, isDieId, isComboId, isCharmId, isTrophyId, isLuckUpgradeId, combosByStrength, rarityOrder } from './defs'
 export * from './formulas'
 export { bestHand, handCounts, handMembers, type HandCounts } from './hands'
 export { trophyEarned } from './trophies'

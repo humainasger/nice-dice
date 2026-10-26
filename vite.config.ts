@@ -19,7 +19,7 @@ export default defineConfig({
       manifest: {
         name: 'Nice Dice',
         short_name: 'Nice Dice',
-        description: 'Nice Dice, a browser dice incremental.',
+        description: "Nice Dice, a dicewright's idle game: carve, roll and refine dice.",
         start_url: base,
         scope: base,
         display: 'standalone',

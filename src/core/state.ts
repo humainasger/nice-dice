@@ -86,6 +86,17 @@ export interface GameState {
   readonly luckTotal: number
   /** Level per luck upgrade; an upgrade with no entry is level 0. Permanent across runs. */
   readonly luckUpgrades: Readonly<Partial<Record<LuckUpgradeId, number>>>
+  /**
+   * Mastery level per die, keyed by die id; a die with no entry is level 0. Each level multiplies
+   * that die's output by (1 + rules.mastery.step x level). Bought with luck (masterDie), unbounded,
+   * permanent across runs.
+   */
+  readonly mastery: Readonly<Partial<Record<Id, number>>>
+  /**
+   * Fortune's Favour level: every roll x(1 + rules.favour.step x favour). Bought with luck
+   * (buyFavour), unbounded, permanent across runs.
+   */
+  readonly favour: number
   readonly prestiges: number
   /** Trophies held, in the order earned. */
   readonly trophies: readonly Id[]

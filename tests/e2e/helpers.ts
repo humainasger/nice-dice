@@ -41,13 +41,25 @@ export async function clearSave(page: Page): Promise<void> {
 }
 
 /**
- * Opens the game and waits until boot has settled. The roll button appearing is not enough on its
- * own: boot() replaces the game once the save is loaded (or a new one is created), and a roll
- * clicked before that would be thrown away. Boot saves straight after, and the save's mirror key
- * in localStorage is the signal that the game on screen is the one being ticked and saved.
+ * Taps Continue on the title screen (M5: it sits before the bench on every load) and waits for it to
+ * leave. The button is disabled until boot has settled, and Playwright waits for it to be enabled,
+ * so this also waits out boot. The locked screen renders instead of the title in a second tab.
+ */
+export async function continueFromTitle(page: Page): Promise<void> {
+  await page.getByTestId('title-continue').click()
+  await expect(page.getByTestId('title-screen')).toHaveCount(0)
+}
+
+/**
+ * Opens the game, continues past the title and waits until boot has settled. The roll button
+ * appearing is not enough on its own: boot() replaces the game once the save is loaded (or a new
+ * one is created), and a roll clicked before that would be thrown away. Boot saves straight after,
+ * and the save's mirror key in localStorage is the signal that the game on screen is the one being
+ * ticked and saved.
  */
 export async function openGame(page: Page): Promise<void> {
   await page.goto('/')
+  await continueFromTitle(page)
   await expect(page.getByTestId('roll-button')).toBeVisible()
   await page.waitForFunction((key: string) => localStorage.getItem(key) !== null, SAVE_KEY)
 }

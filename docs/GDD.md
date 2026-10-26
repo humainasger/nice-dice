@@ -8,7 +8,15 @@ Method for the first pass (PLAN.md section 5): start from Anthony Pecorella's id
 
 Purpose: name the fantasy and the working title, and record what we borrow from Idle Dice and what we change, so every later section has a reference point.
 
-Title: Nice Dice, decided 2026-10-25, repo nice-dice. TODO owner: the fantasy behind the dice (Q1 in section 14). Not casino (D5). Candidates from PLAN.md: workshop, tavern, alchemy, expedition.
+Title: Nice Dice, decided 2026-10-25, repo nice-dice (D15). Fantasy decided 2026-10-26 (D18, `docs/plans/active/m5-theme.md`, closes Q1 of section 14): the player is a dicewright, a craftsperson in a lamp-lit workshop at night who carves dice from ever finer materials and rolls them on the bench to earn their keep. Not a casino, not a tavern (D5). Points stay "points" (the player knows the genre); the workshop supplies every other name. Tone: warm, tactile, a little dry.
+
+- Dice by material in content order: Pine, Oak, Bone, Brass and Obsidian Die (section 4), each with a one-line material note in `src/content/dice.ts`. Buying a die is carving it: "Carve the Oak Die to unlock".
+- Ascension is "refining" in copy: the Refine button, the "Refined xN" badge, auto-refine. The code keeps `ascend` and `ascensions`.
+- Charms stay charms, named after workshop objects (cups, felt, chalk, thimble, knife); their flavour lines sit in the shop (section 5). Luck stays luck and "press your luck" stays the reset.
+- What luck buys once the seven upgrades are maxed: Mastery, per die, and Fortune's Favour, global (section 7.1).
+- Trophies are "Marks" in copy, a dicewright's maker's marks, with workshop names (section 10). Ids, code and the save field keep `trophies`.
+- Tabs: Bench, Hands, Charms, Luck, Marks (tab ids `table`, `combos`, `charms`, `luck`, `trophies` unchanged, so test ids and the stored tab never move).
+- The title screen is the workbench at night: a hand-coded SVG scene with the lamp glow from the top right, one ivory die mid-tumble, shavings and dust motes, "Nice Dice" set in Fraunces (OFL, self-hosted) over the subtitle "a dicewright's idle game". The first tap on it is where audio unlocks.
 
 ### Idle Dice baseline (PLAN.md section 3, verified from the live bundle and wiki)
 
@@ -69,21 +77,21 @@ TODO owner: fill the magnitude cells from the M1 sim output and decide whether a
 
 Purpose: one row per die with base cost, cost growth, output and unlock. These rows are `src/content/dice.ts` and must match it exactly; a content test checks the shape, the owner checks the numbers.
 
-| Id | Name (placeholder) | Base cost (`baseCost`) | Cost growth per level (`costGrowth`) | Output multiplier (`baseMultiplier`) | Unlock (`unlock`) |
+| Id | Name | Base cost (`baseCost`) | Cost growth per level (`costGrowth`) | Output multiplier (`baseMultiplier`) | Unlock (`unlock`) |
 |---|---|---|---|---|---|
-| `die_1` | First Die | 10 | 1.08 | 1 | `always` |
-| `die_2` | Second Die | 100 | 1.08 | 2 | `owned` `die_1`, count 1 |
-| `die_3` | Third Die | 1000 | 1.08 | 4 | `owned` `die_2`, count 1 |
-| `die_4` | Fourth Die | 10000 | 1.08 | 8 | `owned` `die_3`, count 1 |
-| `die_5` | Fifth Die | 35000 | 1.08 | 16 | `owned` `die_4`, count 1 |
+| `die_1` | Pine Die | 10 | 1.08 | 1 | `always` |
+| `die_2` | Oak Die | 100 | 1.08 | 2 | `owned` `die_1`, count 1 |
+| `die_3` | Bone Die | 1000 | 1.08 | 4 | `owned` `die_2`, count 1 |
+| `die_4` | Brass Die | 10000 | 1.08 | 8 | `owned` `die_3`, count 1 |
+| `die_5` | Obsidian Die | 35000 | 1.08 | 16 | `owned` `die_4`, count 1 |
 
-Ids and values match `src/content/dice.ts` as of 2026-10-25. All five dice have `sides: 6`. `src/content/content.test.ts` pins these baseline values, so a change here changes that test in the same pull request.
+Ids and values match `src/content/dice.ts` as of 2026-10-25; the material names are the 2026-10-26 naming pass (section 1, D18) and `content.test.ts` pins them too. All five dice have `sides: 6`. `src/content/content.test.ts` pins these baseline values, so a change here changes that test in the same pull request.
 
 Shipped rules (M1 and M3, cost multiplier retuned in M4; the owner delegated the M3 and M4 edits of this section, `docs/plans/active/m4-luck.md` section 3, 2026-10-26):
 
 - Level cost from level L to L + 1 = `baseCost` x `costGrowth` ^ L x `rules.ascension.costMultiplier` ^ ascensions. The cost multiplier is 400 (`src/content/rules.ts`, `ascension.costMultiplier`; 300 from 2026-10-25 to 2026-10-26, see `docs/BALANCE_LOG.md`): a die's cost curve does not restart from `baseCost` after an ascension, each cycle to the cap costs 400 times the last while it pays 100 times more, so a run settles at about 12 ascensions per die instead of running away. Level 0 to 1 is buying the die at `baseCost`.
 - Ascension (`rules.ascension.level` 100, `rules.ascension.multiplier` 100): a die at level 100 stops levelling and can ascend, by hand or with auto-ascend (default on): level back to 1, output x100 per ascension compounding, faces kept, and one point of draft progress (section 5). Core: `src/core/ascend.ts`.
-- Die multiplier = `baseMultiplier` x level x 100 ^ ascensions x the die's cup charms (section 5). Output per roll = sum over owned dice of (printed face value x die multiplier), then the global multipliers of section 5. The printed face starts at 1 to 6 and face editing raises it (section 5).
+- Die multiplier = `baseMultiplier` x level x 100 ^ ascensions x the die's cup charms (section 5) x (1 + 0.1 x mastery level) (section 7.1, M5). Output per roll = sum over owned dice of (printed face value x die multiplier), then the global multipliers of section 5. The printed face starts at 1 to 6 and face editing raises it (section 5).
 - A new run after a luck reset starts die_1 at level 1, or at 10 x the Head Start level (section 7.1), the other dice unowned.
 
 TODO owner: final names (the table ships placeholders), whether unlock needs anything beyond owning the previous die, and whether a sixth die or multiplier dice ever enter (section 13 says not in v1).
@@ -152,12 +160,12 @@ Purpose: define the one reset layer in v1: trigger, formula, what resets, what s
 - Formula: luck on reset = floor(`perDecade` x log10(`totalEarnedRun` / `threshold`)) + 1, with `rules.luck.perDecade` = 10, so the first reset at the threshold gives 1 luck, a run of 1e11 gives 11, 1e12 gives 21: ten more luck per tenfold run, a log curve that cannot run away with the run total (M3 shipped floor(sqrt(run / threshold)), replaced in M4). Core: `luckOnReset` in `src/core/formulas.ts`.
 - Two counters: `luck` is spendable in the luck shop (section 7.1); `luckTotal` is lifetime luck earned, spent or not. The points multiplier is 1 + `rules.luck.perPoint` x `luckTotal` with `perPoint` = 0.1, so spending luck never weakens a roll.
 - Resets: points, the run total, the dice (die_1 back to level 1 or to the Head Start level, the other four unowned, faces back to 1 to 6, ascensions 0), hand upgrade levels, charms except the ones Memory keeps (up to its level, highest rarity first, pick order on ties), draft progress and the open offer, the last roll; the auto-roll interval is rebuilt from the kept charms and Quick Hands.
-- Stays: luck and lifetime luck, every luck upgrade, trophies, lifetime stats, settings and the auto-roll unlock and switch, auto-ascend, auto-level. Face edits do not survive (they belong to the dice, which reset; the owner's earlier TODO is closed this way, open to reversal).
+- Stays: luck and lifetime luck, every luck upgrade, mastery and Fortune's Favour (section 7.1), trophies (marks), lifetime stats, settings and the auto-roll unlock and switch, auto-ascend (auto-refine), auto-level. Face edits do not survive (they belong to the dice, which reset; the owner's earlier TODO is closed this way, open to reversal).
 - Cycle length, active bot on seeds 1 / 2 / 3 after the 2026-10-26 retune: first luck at 0:34:41 / 0:34:12 / 0:41:43 (target 30 to 60 min, section 12), second luck 26 to 34 minutes after the first (target within 60 min), then about every 20 minutes (the bot's cooldown; a player resets when the preview reads well). Lifetime points at 8 h 1.4e37 to 4.0e37 (target 1e25 to 1e45), see `docs/BALANCE_LOG.md`.
 
-### 7.1 Luck upgrades (the luck shop, new in M4)
+### 7.1 Luck upgrades and luck sinks (the luck shop, M4; the sinks, M5)
 
-Purpose: what spendable luck buys. Table `src/content/luckUpgrades.ts`, seven rows, permanent across runs. Cost of the next level = ceil(`baseCost` x `costGrowth` ^ level), paid in luck; `src/core/formulas.ts` `luckUpgradeCost` and `luckEffects`, command `buyLuckUpgrade`.
+Purpose: what spendable luck buys. Table `src/content/luckUpgrades.ts`, seven capped rows, permanent across runs; below it the two uncapped sinks of M5. Cost of the next level = ceil(`baseCost` x `costGrowth` ^ level), paid in luck; `src/core/formulas.ts` `luckUpgradeCost` and `luckEffects`, command `buyLuckUpgrade`.
 
 | Id | Name | Max level | Cost per level (luck) | Effect per level (`effect`) |
 |---|---|---|---|---|
@@ -170,6 +178,15 @@ Purpose: what spendable luck buys. Table `src/content/luckUpgrades.ts`, seven ro
 | `steady_hands` | Steady Hands | 1 | 3 | auto-level: once per simulated second (`rules.luck.autoLevelEveryMs` 1000) buy the cheapest affordable die level, then the next die when affordable; a switch in the dice board header, on once bought (`autoLevel` in the save, command `setAutoLevel`) |
 
 Everything maxed costs 185 luck, about the fifth or sixth reset of an active player. The sim bot buys by income lift per luck right after each reset: Deep Pockets and Quick Hands first, then Keen Eye and Head Start, Memory and Lucky Draw once the resets pay 20 or more.
+
+Luck sinks (M5, `docs/plans/active/m5-theme.md` sections 1 and 2; `rules.mastery` and `rules.favour` in `src/content/rules.ts`; core `masteryCost`, `masteryMultiplier`, `favourCost`, `favourMultiplier` in `src/core/formulas.ts`, commands `masterDie { id }` and `buyFavour`). Both have no cap and survive every luck reset; a cost past the double range is Infinity, so the levels saturate on their own. The sim bot buys them by income lift per luck once every upgrade above is maxed.
+
+| Id | Name in copy | Scope | Cost of the next level (luck) | Effect per level |
+|---|---|---|---|---|
+| `mastery` | Mastery | per die, `masterDie { id }`, buyable on an unowned die too (the level waits for the die to be carved again) | ceil(2 x 1.35 ^ level): 2, 3, 4, 5, 7, 9, 13, 17, 23, 30, 41, 55, ... | that die's output x(1 + 0.1 x level); rides inside the `dice` factor of the breakdown |
+| `favour` | Fortune's Favour | global, `buyFavour` | ceil(1.5 ^ level): 1, 2, 3, 4, 6, 8, 12, 18, 26, 39, 58, 87, ... | all points x(1 + 0.05 x level); rides inside the `luck` factor of the breakdown |
+
+Balance check at these values (active bot, seeds 1 / 2 / 3, 2026-10-26, `docs/BALANCE_LOG.md`): lifetime points at 8 h 1.51e41 / 2.95e41 / 2.90e40 (target 1e25 to 1e45) and at 24 h 5.94e45 / 4.01e45 / 4.29e45 (target below 1e80), first hour unchanged, so no cost retune. Mastery 13 to 18 per die and favour 15 at 8 h on seed 1; 21 to 22 per die and favour 18 at 24 h. By 24 h a mastery level costs about 1100 luck and a favour level about 1500 against 300 to 400 luck per reset, so luck visibly piles up between buys. Shown on the die card as a "Mastery N" badge with a luck-priced button and in the Luck tab as one row per die plus the favour row.
 
 TODO owner: whether the memory-kept charms should include the cups of unowned dice (they do today and apply once the die is rebought), and whether a reset should ever be worth less than one luck (today the threshold always pays 1).
 
@@ -200,26 +217,26 @@ Purpose: fix how time away is converted into progress.
 
 Purpose: list achievements, their conditions and any reward, as a content table.
 
-Shipped in M3 as trophies, `src/content/trophies.ts`, fourteen rows; the owner delegated the M3 and M4 content edits of this section (`docs/plans/active/m4-luck.md` section 3, 2026-10-26). Each held trophy multiplies every roll by `rules.trophy.multiplier` = 1.02 (`src/content/rules.ts`, `trophy.multiplier`), compounding, so all fourteen give x1.32. Trophies never gate automation (section 1, Change) and survive a luck reset. Core checks them after every state change that can complete one (`src/core/trophies.ts`); the latest one earned surfaces in `newTrophy` for the toast.
+Shipped in M3 as trophies, `src/content/trophies.ts`, fourteen rows; the owner delegated the M3 and M4 content edits of this section (`docs/plans/active/m4-luck.md` section 3, 2026-10-26). Since M5 they are "Marks" in every piece of copy, a dicewright's maker's marks (section 1, D18): the Marks tab, the mark toast, the names and descriptions below. The ids, `src/core/trophies.ts`, the save field `trophies`, `newTrophy` and every test id keep the code name. Each held mark multiplies every roll by `rules.trophy.multiplier` = 1.02 (`src/content/rules.ts`, `trophy.multiplier`), compounding, so all fourteen give x1.32. Marks never gate automation (section 1, Change) and survive a luck reset. Core checks them after every state change that can complete one; the latest one earned surfaces in `newTrophy` for the toast.
 
-| Id | Name | Condition (`condition`) |
-|---|---|---|
-| `first_roll` | First Roll | `rolls` >= 1 |
-| `hundred_rolls` | Warm Hands | `rolls` >= 100 |
-| `thousand_rolls` | Regular | `rolls` >= 1,000 |
-| `ten_thousand_rolls` | Part of the Furniture | `rolls` >= 10,000 |
-| `second_die` | Company | `dieOwned` `die_2` |
-| `third_die` | A Crowd | `dieOwned` `die_3` |
-| `fourth_die` | Full Table | `dieOwned` `die_4` |
-| `fifth_die` | The Whole Set | `dieOwned` `die_5` |
-| `first_ascension` | Over the Top | `ascensions` >= 1 (sum over dice, this run) |
-| `first_charm` | Lucky Charm | `charms` >= 1 held |
-| `first_luck` | Pressed Your Luck | `prestiges` >= 1 |
-| `five_of_a_kind` | Five Alike | `hand` `five_kind` rolled once |
-| `million` | Millionaire | `totalEarned` >= 1,000,000 (lifetime) |
-| `billion` | Billionaire | `totalEarned` >= 1,000,000,000 (lifetime) |
+| Id | Name | Description | Condition (`condition`) |
+|---|---|---|---|
+| `first_roll` | First Throw | Roll a die on the bench once. | `rolls` >= 1 |
+| `hundred_rolls` | Warm Hands | Roll 100 times. | `rolls` >= 100 |
+| `thousand_rolls` | Journeyman | Roll 1,000 times. | `rolls` >= 1,000 |
+| `ten_thousand_rolls` | Groove in the Bench | Roll 10,000 times. The wood remembers. | `rolls` >= 10,000 |
+| `second_die` | Oak Shavings | Carve the Oak Die. | `dieOwned` `die_2` |
+| `third_die` | Bone Dust | Carve the Bone Die. | `dieOwned` `die_3` |
+| `fourth_die` | Brass Filings | Carve the Brass Die. | `dieOwned` `die_4` |
+| `fifth_die` | The Whole Set | Carve the Obsidian Die. Five dice on the bench. | `dieOwned` `die_5` |
+| `first_ascension` | First Refinement | Refine a die for the first time. | `ascensions` >= 1 (sum over dice, this run) |
+| `first_charm` | Hung by the Lamp | Pick your first charm. | `charms` >= 1 held |
+| `first_luck` | Pressed Your Luck | Reset for luck for the first time. | `prestiges` >= 1 |
+| `five_of_a_kind` | Five Alike | Roll five of a kind. | `hand` `five_kind` rolled once |
+| `million` | Earned Your Keep | Earn 1,000,000 points in total. | `totalEarned` >= 1,000,000 (lifetime) |
+| `billion` | Set for Life | Earn 1,000,000,000 points in total. | `totalEarned` >= 1,000,000,000 (lifetime) |
 
-Rolls counted by offline estimation count towards the roll trophies. TODO owner: whether later milestones (a luck upgrade maxed, a second prestige, 1e15 lifetime) deserve rows; the multiplier per trophy if fourteen feel too few or x1.32 too much.
+The Marks tab shows a progress line per unearned mark ("412 / 1.00K rolls", "Carve the Oak Die", "0 / 1 refinements"). Rolls counted by offline estimation count towards the roll marks. TODO owner: whether later milestones (a luck upgrade maxed, a mastery level, a second prestige, 1e15 lifetime) deserve rows; the multiplier per mark if fourteen feel too few or x1.32 too much.
 
 ## 11. Save policy
 
@@ -259,7 +276,7 @@ From D5, D6 and the parking lot in PLAN.md section 3.
 
 From PLAN.md section 8. TODO owner on all four.
 
-- Q1 Title decided 2026-10-25: Nice Dice, repo nice-dice. The fantasy behind the dice is still open and is needed before M1 names any content. Not casino (D5).
+- Q1 Decided. Title Nice Dice (2026-10-25); fantasy the dicewright's workshop (2026-10-26, D18): Pine, Oak, Bone, Brass and Obsidian dice, refining, marks.
 - Q2 Phone or laptop first. Idle Dice is landscape. Recommendation: responsive with a portrait phone layout, since that is where you will playtest.
 - Q3 Monetisation intent. Hobby and free changes nothing. Portal ads later means Cloudflare hosting, PEGI 12, a privacy policy and the platform adapter from M0, all already in the plan.
 - Q4 The v1 differentiator. Recommendation: face editing. Alternatives in the parking lot.

@@ -58,6 +58,7 @@ export function luckUpgradeDef(id: LuckUpgradeId): LuckUpgradeDef {
 }
 
 /** Whether an id names a content row of the given table; for saves and commands built from untyped data. */
+export const isDieId = (id: string): boolean => diceById.has(id)
 export const isComboId = (id: string): id is ComboId => combosById.has(id)
 export const isCharmId = (id: string): boolean => charmsById.has(id)
 export const isTrophyId = (id: string): boolean => trophiesById.has(id)

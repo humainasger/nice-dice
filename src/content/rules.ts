@@ -2,7 +2,8 @@
 // (GDD section 6, Roll row), the offline policy (GDD section 9) and the M3 systems from
 // docs/plans/active/m3-game.md: ascension (GDD section 4 and 5), combos (section 5), face editing
 // (section 5 and 6), the charm draft (section 5), luck (section 7, with the M4 log formula and the
-// auto-level cadence from docs/plans/active/m4-luck.md) and trophies (section 10).
+// auto-level cadence from docs/plans/active/m4-luck.md), the M5 luck sinks mastery and Fortune's
+// Favour (section 7.1, docs/plans/active/m5-theme.md sections 1 and 2) and trophies (section 10).
 // Plain numbers only; core reads them through src/core/defs.ts. The schema lives here because the
 // table is one object, not rows with ids like dice.
 import { z } from 'zod'
@@ -97,6 +98,27 @@ export const rulesSchema = z.strictObject({
     /** Auto-level (the steady_hands upgrade) buys once per this much simulated time. m4-luck.md section 2: every simulated second. */
     autoLevelEveryMs: z.number().int().positive(),
   }),
+  mastery: z.strictObject({
+    /**
+     * Luck price of the first mastery level on a die; the next level costs ceil(baseCost x
+     * costGrowth ^ level). Unbounded and permanent across luck resets. m5-theme.md section 1: 2.
+     * GDD section 7.1.
+     */
+    baseCost: z.number().positive(),
+    /** Cost growth per mastery level on the same die. m5-theme.md section 1: 1.35. GDD section 7.1. */
+    costGrowth: z.number().gt(1),
+    /** Each mastery level multiplies that die's output by (1 + step x level). m5-theme.md section 1: 0.1. GDD section 7.1. */
+    step: z.number().positive(),
+  }),
+  favour: z.strictObject({
+    /**
+     * Luck price of the next Fortune's Favour level: ceil(costGrowth ^ level), so level 0 costs 1.
+     * Unbounded and permanent across luck resets. m5-theme.md section 2: 1.5. GDD section 7.1.
+     */
+    costGrowth: z.number().gt(1),
+    /** Each favour level multiplies every roll by (1 + step x level). m5-theme.md section 2: 0.05. GDD section 7.1. */
+    step: z.number().positive(),
+  }),
   trophy: z.strictObject({
     /** Points multiplier per held trophy, compounding. GDD section 10; m3-game.md section 6: 1.02. */
     multiplier: z.number().gt(1),
@@ -142,6 +164,15 @@ export const rules: RulesDef = {
     perPoint: 0.1,
     perDecade: 10,
     autoLevelEveryMs: 1000,
+  },
+  mastery: {
+    baseCost: 2,
+    costGrowth: 1.35,
+    step: 0.1,
+  },
+  favour: {
+    costGrowth: 1.5,
+    step: 0.05,
   },
   trophy: {
     multiplier: 1.02,

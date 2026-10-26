@@ -83,6 +83,8 @@ export interface UiState {
   readonly draftDismissed: boolean
   /** Trophies awarded and not yet shown, oldest first; the toast shows the head and shifts. */
   readonly trophyQueue: readonly string[]
+  /** The player tapped Continue on the title screen (src/ui/title); the bench renders from here on. Never saved: the title plays on every load. */
+  readonly titleDismissed: boolean
 }
 
 export interface StoreState {
@@ -150,6 +152,7 @@ export const store = createStore<StoreState>(() => ({
     save: { lastSavedAt: null, persisted: null, error: null, quarantined: false },
     draftDismissed: false,
     trophyQueue: [],
+    titleDismissed: false,
   },
 }))
 
@@ -218,6 +221,11 @@ export function dismissDraft(): void {
 
 export function reopenDraft(): void {
   setUi({ draftDismissed: false })
+}
+
+/** Leave the title screen for the bench. The title's Continue tap calls this after unlockAudio(). */
+export function dismissTitle(): void {
+  setUi({ titleDismissed: true })
 }
 
 /**

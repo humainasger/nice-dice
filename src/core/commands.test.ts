@@ -1,8 +1,8 @@
 // dispatch on every command, valid and invalid: no-ops hand back the same object, points never go
 // negative, levels never exceed what the points allowed or the cap, the M3 commands (combos,
 // faces, ascension, the draft, luck, auto-ascend, trophies), the M4 luck shop (buyLuckUpgrade,
-// setAutoLevel, prestige with memory and head_start), and a command sequence is deterministic for
-// its seed with every reachable state loadable.
+// setAutoLevel, prestige with memory and head_start), the M5 luck sinks (masterDie, buyFavour),
+// and a command sequence is deterministic for its seed with every reachable state loadable.
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content, LUCK_UPGRADE_IDS } from '@/content'
@@ -14,11 +14,14 @@ import {
   bulkCost,
   comboUpgradeCost,
   draftOfferSize,
+  effectiveDieMultiplier,
   faceUpgradeCost,
+  favourCost,
   levelCost,
   levelsBuyable,
   luckOnReset,
   luckUpgradeCost,
+  masteryCost,
   maxAffordable,
   rollPoints,
 } from './formulas'
@@ -595,6 +598,158 @@ describe('buyLuckUpgrade', () => {
   })
 })
 
+describe('masterDie', () => {
+  const rich = (luck: number, extra: Partial<GameState> = {}): GameState => ({ ...createInitialState(1), luck, luckTotal: luck, ...extra })
+
+  it('ignores an unknown id, a non-string and an unaffordable level', () => {
+    const state = rich(100)
+    expect(dispatch(state, { type: 'masterDie', id: 'ghost' })).toBe(state)
+    expect(dispatch(state, { type: 'masterDie', id: 7 as unknown as string })).toBe(state)
+    const poor = rich(masteryCost(0) - 1)
+    expect(dispatch(poor, { type: 'masterDie', id: die1.id })).toBe(poor)
+    const broke = rich(0)
+    for (const id of ids) expect(dispatch(broke, { type: 'masterDie', id }), id).toBe(broke)
+  })
+
+  it('charges the next cost from spendable luck only, raises that die alone and lifts only its output', () => {
+    // die_2 bought through dispatch, so its trophy is already awarded and the sink buys change nothing else.
+    const state = dispatch(withPoints(rich(20), die2.baseCost), { type: 'buyDie', id: die2.id })
+    expect(state.dice[1]?.owned).toBe(true)
+    const once = dispatch(state, { type: 'masterDie', id: die1.id })
+    expect(once).not.toBe(state)
+    expect(once.mastery).toEqual({ [die1.id]: 1 })
+    expect(once.luck).toBe(20 - masteryCost(0))
+    expect(once.luckTotal).toBe(20)
+    expect(once.favour).toBe(0)
+    expect(once.dice).toBe(state.dice)
+    expect(once.luckUpgrades).toBe(state.luckUpgrades)
+    expect(once.autoRoll).toBe(state.autoRoll)
+    const twice = dispatch(once, { type: 'masterDie', id: die1.id })
+    expect(twice.mastery).toEqual({ [die1.id]: 2 })
+    expect(twice.luck).toBe(once.luck - masteryCost(1))
+    const other = dispatch(twice, { type: 'masterDie', id: die2.id })
+    expect(other.mastery).toEqual({ [die1.id]: 2, [die2.id]: 1 })
+    expect(other.luck).toBe(twice.luck - masteryCost(0))
+    // With die_1 alone, two mastery levels lift the roll by exactly x(1 + 2 x step).
+    const onlyFirst: GameState = { ...state, dice: state.dice.map((die, i) => (i === 1 ? { ...die, owned: false, level: 0 } : die)) }
+    const onlyFirstMastered: GameState = { ...onlyFirst, mastery: twice.mastery }
+    expect(close(rollPoints(onlyFirstMastered, [4]), N.mul(rollPoints(onlyFirst, [4]), 1 + 2 * rules.mastery.step))).toBe(true)
+    // With both dice (faces 4 and 1, no hand) only die_1's share of the dice sum grows: (4 x m1 x 1.2 + 1 x m2) / (4 x m1 + 1 x m2).
+    const [first, second] = state.dice
+    if (!first || !second) throw new Error('setup')
+    const m1 = effectiveDieMultiplier(state, first)
+    const m2 = effectiveDieMultiplier(state, second)
+    const before = N.add(N.mul(m1, 4), m2)
+    const after = N.add(N.mul(N.mul(m1, 4), 1 + 2 * rules.mastery.step), m2)
+    expect(close(rollPoints(twice, [4, 1]), N.mul(rollPoints(state, [4, 1]), N.div(after, before)))).toBe(true)
+  })
+
+  it('works on an unowned die, and the level counts once the die is bought', () => {
+    const state = rich(10)
+    expect(state.dice[1]?.owned).toBe(false)
+    const mastered = dispatch(state, { type: 'masterDie', id: die2.id })
+    expect(mastered.mastery).toEqual({ [die2.id]: 1 })
+    expect(mastered.dice).toBe(state.dice)
+    const bought = dispatch(withPoints(mastered, 1e6), { type: 'buyDie', id: die2.id })
+    const plain = dispatch(withPoints(state, 1e6), { type: 'buyDie', id: die2.id })
+    expect(N.gt(rollPoints(bought, [1, 4]), rollPoints(plain, [1, 4]))).toBe(true)
+  })
+
+  it('has no cap: walks thirty levels at the content costs, never overdraws, and stops exactly when the luck runs short', () => {
+    let state = rich(100000)
+    let paid = 0
+    for (let level = 0; level < 30; level++) {
+      const next = dispatch(state, { type: 'masterDie', id: die3.id })
+      expect(next, `level ${level}`).not.toBe(state)
+      paid += masteryCost(level)
+      expect(next.luck).toBe(100000 - paid)
+      expect(next.mastery[die3.id]).toBe(level + 1)
+      state = next
+    }
+    expect(paid).toBe(46457)
+    const exact = rich(masteryCost(0))
+    expect(dispatch(exact, { type: 'masterDie', id: die1.id }).luck).toBe(0)
+    const short = rich(masteryCost(0) - 1)
+    expect(dispatch(short, { type: 'masterDie', id: die1.id })).toBe(short)
+    const high = rich(1000, { mastery: { [die1.id]: 5000 } })
+    expect(masteryCost(5000)).toBe(Infinity)
+    expect(dispatch(high, { type: 'masterDie', id: die1.id })).toBe(high)
+    expect(parseSave(serializeState(state)).ok).toBe(true)
+  })
+
+  it('survives a luck reset', () => {
+    const state = rich(10, { totalEarned: N.from(4 * rules.luck.threshold), totalEarnedRun: N.from(4 * rules.luck.threshold) })
+    const mastered = dispatch(dispatch(state, { type: 'masterDie', id: die1.id }), { type: 'masterDie', id: die2.id })
+    const reset = dispatch(mastered, { type: 'prestige' })
+    expect(reset.prestiges).toBe(1)
+    expect(reset.mastery).toBe(mastered.mastery)
+    expect(reset.dice[1]?.owned).toBe(false)
+    expect(reset.luck).toBe(mastered.luck + luckOnReset(mastered))
+  })
+})
+
+describe('buyFavour', () => {
+  const rich = (luck: number, extra: Partial<GameState> = {}): GameState => ({ ...createInitialState(1), luck, luckTotal: luck, ...extra })
+
+  it('ignores an unaffordable level', () => {
+    const broke = rich(0)
+    expect(dispatch(broke, { type: 'buyFavour' })).toBe(broke)
+    const short = rich(favourCost(3) - 1, { favour: 3 })
+    expect(dispatch(short, { type: 'buyFavour' })).toBe(short)
+  })
+
+  it('charges the next cost from spendable luck only, raises the level and lifts every roll by the step', () => {
+    // die_2 bought through dispatch, so its trophy is already awarded and the sink buys change nothing else.
+    const state = dispatch(withPoints(rich(20), die2.baseCost), { type: 'buyDie', id: die2.id })
+    expect(state.dice[1]?.owned).toBe(true)
+    const once = dispatch(state, { type: 'buyFavour' })
+    expect(once).not.toBe(state)
+    expect(once.favour).toBe(1)
+    expect(once.luck).toBe(20 - favourCost(0))
+    expect(once.luck).toBe(19)
+    expect(once.luckTotal).toBe(20)
+    expect(once.mastery).toBe(state.mastery)
+    expect(once.dice).toBe(state.dice)
+    expect(once.luckUpgrades).toBe(state.luckUpgrades)
+    const twice = dispatch(once, { type: 'buyFavour' })
+    expect(twice.favour).toBe(2)
+    expect(twice.luck).toBe(once.luck - favourCost(1))
+    for (const faces of [[4, 1], [3, 3], [6, 6]]) {
+      expect(close(rollPoints(twice, faces), N.mul(rollPoints(state, faces), 1 + 2 * rules.favour.step))).toBe(true)
+    }
+  })
+
+  it('has no cap: walks thirty levels at the content costs, never overdraws, and stops exactly when the luck runs short', () => {
+    let state = rich(1000000)
+    let paid = 0
+    for (let level = 0; level < 30; level++) {
+      const next = dispatch(state, { type: 'buyFavour' })
+      expect(next, `level ${level}`).not.toBe(state)
+      paid += favourCost(level)
+      expect(next.luck).toBe(1000000 - paid)
+      expect(next.favour).toBe(level + 1)
+      state = next
+    }
+    expect(paid).toBe(383514)
+    const exact = rich(favourCost(0))
+    expect(dispatch(exact, { type: 'buyFavour' }).luck).toBe(0)
+    const high = rich(1000, { favour: 5000 })
+    expect(favourCost(5000)).toBe(Infinity)
+    expect(dispatch(high, { type: 'buyFavour' })).toBe(high)
+    expect(parseSave(serializeState(state)).ok).toBe(true)
+  })
+
+  it('survives a luck reset', () => {
+    const state = rich(10, { totalEarned: N.from(4 * rules.luck.threshold), totalEarnedRun: N.from(4 * rules.luck.threshold) })
+    const favoured = dispatch(dispatch(state, { type: 'buyFavour' }), { type: 'buyFavour' })
+    expect(favoured.favour).toBe(2)
+    const reset = dispatch(favoured, { type: 'prestige' })
+    expect(reset.favour).toBe(2)
+    expect(reset.luck).toBe(favoured.luck + luckOnReset(favoured))
+    expect(reset.luckTotal).toBe(10 + luckOnReset(favoured))
+  })
+})
+
 describe('setAutoLevel', () => {
   it('is a no-op without steady_hands, for a non-boolean and for the current value, and toggles once owned', () => {
     const state = createInitialState(1)
@@ -697,6 +852,8 @@ describe('dispatch', () => {
     fc.constant<Command>({ type: 'clearNewTrophy' }),
     fc.constantFrom(...LUCK_UPGRADE_IDS).map((id): Command => ({ type: 'buyLuckUpgrade', id })),
     fc.boolean().map((enabled): Command => ({ type: 'setAutoLevel', enabled })),
+    fc.constantFrom(...ids, 'ghost').map((id): Command => ({ type: 'masterDie', id })),
+    fc.constant<Command>({ type: 'buyFavour' }),
   )
   const step: fc.Arbitrary<Step> = fc.oneof(
     command.map((c): Step => ({ kind: 'command', command: c })),
@@ -710,6 +867,9 @@ describe('dispatch', () => {
     N.gte(state.totalEarned, state.totalEarnedRun) &&
     state.luck >= 0 &&
     state.luckTotal >= state.luck &&
+    Object.entries(state.mastery).every(([id, level]) => ids.includes(id) && Number.isSafeInteger(level) && (level ?? 0) >= 1) &&
+    Number.isSafeInteger(state.favour) &&
+    state.favour >= 0 &&
     Object.entries(state.luckUpgrades).every(([id, level]) => (level ?? 0) <= luckUpgradeDef(id as (typeof LUCK_UPGRADE_IDS)[number]).maxLevel) &&
     (!state.autoLevel || (state.luckUpgrades.steady_hands ?? 0) >= 1) &&
     state.dice.length === content.dice.length &&

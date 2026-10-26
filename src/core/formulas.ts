@@ -1,10 +1,11 @@
 // The formulas. Every constant comes from src/content and every game value is a Num; the only
 // plain arithmetic here is on content numbers, levels and counts. Points per roll:
 // (sum over owned dice of printed face x die multiplier) x best combo x charms x luck x trophies,
-// where die multiplier = baseMultiplier x level x ascension^ascensions x die charms, the combo
-// carries the keen_eye upgrade and "luck" is 1 + perPoint x luckTotal times the deep_pockets
-// upgrade. The luck upgrades (src/content/luckUpgrades.ts) fold into LuckEffects the way charms
-// fold into CharmEffects.
+// where die multiplier = baseMultiplier x level x ascension^ascensions x die charms x mastery,
+// the combo carries the keen_eye upgrade and "luck" is 1 + perPoint x luckTotal times the
+// deep_pockets upgrade times Fortune's Favour. The luck upgrades (src/content/luckUpgrades.ts)
+// fold into LuckEffects the way charms fold into CharmEffects; the two M5 luck sinks (mastery per
+// die, favour global; rules.mastery and rules.favour) are unbounded levels read straight off the state.
 import {
   charmDieTarget,
   LUCK_UPGRADE_IDS,
@@ -169,13 +170,42 @@ export function charmEffectsOf(charms: readonly Id[]): CharmEffects {
   return { points, dice, combo, autoroll, faceCap, draftGrowth }
 }
 
-/** What one owned die multiplies its printed face by: base x level x ascensions x its charms. Zero while unowned. */
+/** What one owned die multiplies its printed face by: base x level x ascensions x its charms x its mastery. Zero while unowned. */
 export function effectiveDieMultiplier(state: GameState, die: DieState, effects: CharmEffects = charmEffects(state)): Num {
   if (!die.owned) return N.zero
   const def = dieDef(die.id)
   const charm = effects.dice.get(die.id)
   const base = N.mul(dieMultiplier(def, die.level), ascensionMultiplier(die.ascensions))
-  return charm === undefined ? base : N.mul(base, charm)
+  const charmed = charm === undefined ? base : N.mul(base, charm)
+  const mastery = masteryLevel(state, die.id)
+  return mastery > 0 ? N.mul(charmed, masteryMultiplier(mastery)) : charmed
+}
+
+/** The mastery level of a die (0 when never mastered). */
+export const masteryLevel = (state: GameState, id: Id): number => state.mastery[id] ?? 0
+
+/**
+ * Luck price of the next mastery level on a die after `level` levels: ceil(baseCost x costGrowth ^
+ * level), a whole number of luck. Unbounded; past about level 2400 the double overflows to
+ * Infinity, which no purse can meet, so the command simply stops there.
+ */
+export function masteryCost(level: number): number {
+  return Math.ceil(rules.mastery.baseCost * Math.pow(rules.mastery.costGrowth, level))
+}
+
+/** Output factor of a die from its mastery: 1 + step x level. */
+export function masteryMultiplier(level: number): Num {
+  return N.add(1, N.mul(rules.mastery.step, level))
+}
+
+/** Luck price of the next Fortune's Favour level after `level` levels: ceil(costGrowth ^ level); level 0 costs 1. Unbounded. */
+export function favourCost(level: number): number {
+  return Math.ceil(Math.pow(rules.favour.costGrowth, level))
+}
+
+/** Points factor from Fortune's Favour: 1 + step x level. */
+export function favourMultiplier(level: number): Num {
+  return N.add(1, N.mul(rules.favour.step, level))
 }
 
 /** The level of a luck upgrade (0 when never bought). */
@@ -367,13 +397,14 @@ export function draftRequirement(state: GameState, effects: CharmEffects = charm
   return Math.ceil(Math.pow(draftGrowth(state, effects), state.draft.taken))
 }
 
-/** Everything luck gives every roll: 1 + perPoint x luckTotal, times the deep_pockets upgrade. */
+/** Everything luck gives every roll: 1 + perPoint x luckTotal, times the deep_pockets upgrade, times Fortune's Favour. */
 export function luckAndUpgradesMultiplier(state: GameState, upgrades: LuckEffects = luckEffects(state)): Num {
   const luck = luckMultiplier(state)
-  return N.eq(upgrades.points, N.one) ? luck : N.mul(luck, upgrades.points)
+  const pocketed = N.eq(upgrades.points, N.one) ? luck : N.mul(luck, upgrades.points)
+  return state.favour > 0 ? N.mul(pocketed, favourMultiplier(state.favour)) : pocketed
 }
 
-/** Multipliers that apply to every roll: points charms x luck (with deep_pockets) x trophies. */
+/** Multipliers that apply to every roll: points charms x luck (with deep_pockets and favour) x trophies. */
 export function globalMultiplier(
   state: GameState,
   effects: CharmEffects = charmEffects(state),

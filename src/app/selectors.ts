@@ -442,3 +442,16 @@ export const selectLuck = (s: StoreState): number => s.game.luck
 export const selectTitleDismissed = (s: StoreState): boolean => s.ui.titleDismissed
 /** A game worth continuing is loaded: boot finished and it has rolled or prestiged. False means "Start carving". */
 export const selectHasSave = (s: StoreState): boolean => s.ui.booted && (s.game.rolls > 0 || s.game.prestiges > 0)
+
+// M6 play card (docs/plans/active/m6-mobile.md): the last roll as arrays for the DiceRow (faces
+// and the hand's member indexes), and the next-die hint without the filler sentence.
+const NO_FACES: readonly number[] = []
+/** Faces of the last roll in owned-dice order: the store's own array, stable until the next roll. Wrap in useShallow at the call site. */
+export const selectLastRollFaceList = (s: StoreState): readonly number[] => s.game.lastRoll?.faces ?? NO_FACES
+/** Indexes into the last roll's faces that form its hand; empty without a hand. A fresh array: wrap in useShallow. */
+export const selectLastRollMemberList = (s: StoreState): readonly number[] => {
+  const last = s.game.lastRoll
+  return last === null || last.hand === null ? NO_FACES : handMembers(last.faces)
+}
+/** The next die to carve, or what unlocks it; empty once every die is on the bench, so the play card can show nothing. */
+export const selectNextUnlockHint = (s: StoreState): string => (nextUnlock(s.game) === null ? '' : selectNextUnlockText(s))

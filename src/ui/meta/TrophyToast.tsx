@@ -61,7 +61,7 @@ export function TrophyToast() {
           <StampIcon className="size-5" />
         </span>
         <span className="flex min-w-0 flex-col">
-          <span className="text-[0.65rem] font-medium tracking-wide text-amber-text uppercase">Mark</span>
+          <span className="text-xs font-medium tracking-wide text-amber-text uppercase">Mark</span>
           <span className="font-medium leading-snug">{shown.name}</span>
           <span className="text-xs text-muted-foreground">{shown.description}</span>
         </span>

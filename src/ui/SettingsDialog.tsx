@@ -1,14 +1,14 @@
-// Settings: theme, reduced motion, the save as an export string, import behind a confirmation
-// step, the stored backups with a restore behind a confirmation step (BackupsSection), reset
-// behind a typed confirmation, and the save status line. The body mounts fresh on every open
-// (Radix unmounts closed dialog content), so its local state needs no reset effect and the export
-// string and the backup list are read at open time.
+// Settings: theme, reduced motion and sound, the save as an export string, import behind a
+// confirmation step, the stored backups with a restore behind a confirmation step
+// (BackupsSection), reset behind a typed confirmation, and the save status line. The bench's
+// automation switches live in the Automation sheet on the bench (src/ui/AutomationSheet.tsx), not
+// here. The body mounts fresh on every open (Radix unmounts closed dialog content), so its local
+// state needs no reset effect and the export string and the backup list are read at open time.
 import { useRef, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { formatSaveStatus, selectLastSavedAt, selectPersisted, selectReduceMotion, selectSaveError, selectSound, selectTheme } from '@/app/selectors'
-import { selectAutoAscend } from '@/app/selectors.meta'
 import { decodeExport, exportString, importString, resetGame } from '@/app/storage'
-import { send, setSettings, useGameStore } from '@/app/store'
+import { setSettings, useGameStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -70,7 +70,6 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
   const theme = useGameStore(selectTheme)
   const reduceMotion = useGameStore(selectReduceMotion)
   const sound = useGameStore(selectSound)
-  const autoAscend = useGameStore(selectAutoAscend)
   const lastSavedAt = useGameStore(selectLastSavedAt)
   const persisted = useGameStore(selectPersisted)
   const saveError = useGameStore(selectSaveError)
@@ -178,25 +177,6 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
             data-testid="sound-switch"
             checked={sound}
             onCheckedChange={(checked) => setSettings({ sound: checked })}
-          />
-        </label>
-      </section>
-
-      <Separator />
-
-      <section aria-labelledby="settings-game" className="flex flex-col gap-2">
-        <SectionTitle id="settings-game">Bench</SectionTitle>
-        <label htmlFor="auto-ascend" className="flex min-h-11 items-center justify-between gap-3 text-sm select-none touch-manipulation">
-          <span className="flex flex-col">
-            <span>Auto-refine</span>
-            <span className="text-xs text-muted-foreground">A die at level 100 is refined on its own: back to level 1, output x100.</span>
-          </span>
-          <Switch
-            id="auto-ascend"
-            aria-label="Auto-refine"
-            data-testid="auto-ascend-switch"
-            checked={autoAscend}
-            onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}
           />
         </label>
       </section>

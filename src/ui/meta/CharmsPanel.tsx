@@ -1,19 +1,24 @@
-// The Charms tab: locked until the first ascension, then the draft progress bar ("2 / 3
-// ascensions"), a note while a draft is waiting, and the charms held this run as cards. A charm
-// held twice is one card with an x2 badge.
+// The Charms tab: locked until the first ascension (after a luck reset: until the first ascension
+// of this run), then the draft progress bar ("2 / 3 ascensions"), a note while a draft is open or
+// waiting (put aside with "Decide later", with an "Open draft" button), and the charms held this
+// run as cards. A charm held twice is one card with an x2 badge.
 import { SparklesIcon } from 'lucide-react'
 import { charmDef } from '@/core'
 import type { Id } from '@/content'
 import {
   selectCharmCount,
+  selectCharmsLockedHeadline,
   selectCharmsUnlocked,
   selectDraftOpen,
   selectDraftProgress,
   selectDraftRequirement,
   selectDraftTaken,
+  selectDraftWaiting,
   selectHeldCharmIds,
+  selectPrestiges,
 } from '@/app/selectors.meta'
-import { useGameStore, useShallow } from '@/app/store'
+import { reopenDraft, useGameStore, useShallow } from '@/app/store'
+import { Button } from '@/components/ui/button'
 import { CharmCard } from './CharmCard'
 import { Bar, LockedCard, PanelCard, PanelTitle } from './parts'
 
@@ -30,10 +35,13 @@ function groupHeld(ids: readonly Id[]): { id: Id; count: number }[] {
 
 export function CharmsPanel() {
   const unlocked = useGameStore(selectCharmsUnlocked)
+  const lockedHeadline = useGameStore(selectCharmsLockedHeadline)
+  const prestiges = useGameStore(selectPrestiges)
   const progress = useGameStore(selectDraftProgress)
   const requirement = useGameStore(selectDraftRequirement)
   const taken = useGameStore(selectDraftTaken)
   const draftOpen = useGameStore(selectDraftOpen)
+  const draftWaiting = useGameStore(selectDraftWaiting)
   const count = useGameStore(selectCharmCount)
   const held = useGameStore(useShallow(selectHeldCharmIds))
 
@@ -42,8 +50,12 @@ export function CharmsPanel() {
       <div data-testid="charms-panel" className="flex flex-col gap-4">
         <LockedCard
           testId="charms-locked"
-          headline="Charms open after your first ascension."
-          detail="A die at level 100 ascends: back to level 1, output x100, and one step toward a draft of three charms."
+          headline={lockedHeadline}
+          detail={
+            prestiges > 0
+              ? 'The luck reset took the charms with it. A die at level 100 ascends: back to level 1, output x100, and one step toward a fresh draft of three charms.'
+              : 'A die at level 100 ascends: back to level 1, output x100, and one step toward a draft of three charms.'
+          }
         />
       </div>
     )
@@ -62,7 +74,16 @@ export function CharmsPanel() {
           </span>
         </div>
         <Bar value={percent} tone="cool" label="Draft progress" />
-        {draftOpen ? (
+        {draftWaiting ? (
+          <div data-testid="draft-waiting" className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm text-cool-text">
+              <SparklesIcon className="size-4" aria-hidden="true" />A draft is waiting. Ascensions keep filling the bar meanwhile.
+            </p>
+            <Button data-testid="draft-open" onClick={reopenDraft} className="min-h-11 touch-manipulation">
+              Open draft
+            </Button>
+          </div>
+        ) : draftOpen ? (
           <p className="flex items-center gap-2 text-sm text-cool-text">
             <SparklesIcon className="size-4" aria-hidden="true" />A draft is waiting. Pick one of three charms.
           </p>

@@ -1,5 +1,6 @@
 // The dice board: one card per content die, in content order, under a small header that carries
-// the auto-ascend switch once ascension is in play. The board is the stage for the roll effects:
+// the auto-ascend switch once ascension is in play and the auto-level switch once the Steady Hands
+// luck upgrade is owned. The board is the stage for the roll effects:
 // a floating "+N" and the combo sound on every new roll, the combo callout over the first row of
 // dice with the gain under it, and a gold burst plus a screen shake on four or five of a kind. One
 // column on phones, two from 640 px, three from 1024 px. The effects anchor to the top of the
@@ -17,6 +18,7 @@ import {
   selectLastGainedText,
   selectRolls,
 } from '@/app/selectors'
+import { selectAutoLevel, selectAutoLevelAvailable } from '@/app/selectors.luck'
 import { send, useGameStore } from '@/app/store'
 import { Switch } from '@/components/ui/switch'
 import { ComboCallout, Particles, ScreenShake, useFloatingNumbers } from '@/ui/fx'
@@ -33,6 +35,8 @@ export function DiceBoard() {
   const bigHands = useGameStore(selectBigHands)
   const ascensionVisible = useGameStore(selectAscensionVisible)
   const autoAscend = useGameStore(selectAutoAscend)
+  const autoLevelAvailable = useGameStore(selectAutoLevelAvailable)
+  const autoLevel = useGameStore(selectAutoLevel)
   const { spawn, portal } = useFloatingNumbers()
 
   // One "+N" and, with a hand, one combo note per new roll. The first roll count seen is a mount, not a roll.
@@ -52,21 +56,39 @@ export function DiceBoard() {
         <h2 id="dice-heading" className="text-sm font-medium text-muted-foreground">
           Dice
         </h2>
-        {ascensionVisible && (
-          <label
-            htmlFor="auto-ascend"
-            className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground select-none touch-manipulation"
-          >
-            Auto-ascend at level {content.rules.ascension.level}
-            <Switch
-              id="auto-ascend"
-              aria-label="Auto-ascend"
-              data-testid="auto-ascend-switch"
-              checked={autoAscend}
-              onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}
-            />
-          </label>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-x-4">
+          {autoLevelAvailable && (
+            <label
+              htmlFor="auto-level"
+              title="Steady Hands: every second buys the cheapest die level you can afford, and the next die when you can"
+              className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground select-none touch-manipulation"
+            >
+              Auto-level
+              <Switch
+                id="auto-level"
+                aria-label="Auto-level"
+                data-testid="auto-level-switch"
+                checked={autoLevel}
+                onCheckedChange={(checked) => send({ type: 'setAutoLevel', enabled: checked })}
+              />
+            </label>
+          )}
+          {ascensionVisible && (
+            <label
+              htmlFor="auto-ascend"
+              className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground select-none touch-manipulation"
+            >
+              Auto-ascend at level {content.rules.ascension.level}
+              <Switch
+                id="auto-ascend"
+                aria-label="Auto-ascend"
+                data-testid="auto-ascend-switch"
+                checked={autoAscend}
+                onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}
+              />
+            </label>
+          )}
+        </div>
       </header>
 
       <ScreenShake trigger={bigHands}>

@@ -5,17 +5,21 @@ import type { ZodType } from 'zod'
 import { charms } from './charms'
 import { combos } from './combos'
 import { dice } from './dice'
+import { luckUpgrades } from './luckUpgrades'
 import { rules, rulesSchema, type RulesDef } from './rules'
 import {
   charmDefSchema,
   COMBO_IDS,
   comboDefSchema,
   dieDefSchema,
+  LUCK_UPGRADE_IDS,
+  luckUpgradeDefSchema,
   trophyDefSchema,
   type CharmDef,
   type ComboDef,
   type DieDef,
   type Id,
+  type LuckUpgradeDef,
   type TrophyDef,
   type UnlockCondition,
 } from './schema'
@@ -26,6 +30,7 @@ export { dice } from './dice'
 export { combos } from './combos'
 export { charms } from './charms'
 export { trophies } from './trophies'
+export { luckUpgrades } from './luckUpgrades'
 export { rules, rulesSchema, type RulesDef } from './rules'
 
 export interface ContentTables {
@@ -33,10 +38,11 @@ export interface ContentTables {
   readonly combos: readonly ComboDef[]
   readonly charms: readonly CharmDef[]
   readonly trophies: readonly TrophyDef[]
+  readonly luckUpgrades: readonly LuckUpgradeDef[]
   readonly rules: RulesDef
 }
 
-export const content: ContentTables = { dice, combos, charms, trophies, rules }
+export const content: ContentTables = { dice, combos, charms, trophies, luckUpgrades, rules }
 
 type TableName = keyof ContentTables
 /** Tables made of rows with ids. The rest (rules) are single objects. */
@@ -52,6 +58,7 @@ const rowSchemas: { readonly [K in RowTableName]: ZodType<ContentTables[K][numbe
   combos: comboDefSchema,
   charms: charmDefSchema,
   trophies: trophyDefSchema,
+  luckUpgrades: luckUpgradeDefSchema,
 }
 
 /** Ids an unlock condition points at. Exhaustive, so a new kind must declare what it references. */
@@ -81,14 +88,15 @@ function idOf(raw: unknown): string | undefined {
 /**
  * Checks that every row of every table parses, that the rules object parses, that ids are unique
  * across all tables, that every id a row references (die unlocks, charm die targets, trophy die
- * conditions) exists, and that the combos table has every hand exactly once. Throws one Error
- * listing every problem found.
+ * conditions) exists, and that the combos and luckUpgrades tables have every member of their
+ * closed id set exactly once. Throws one Error listing every problem found.
  */
 export function validateContent(tables: RawTables = content): void {
   const problems: string[] = []
   const declaredAt = new Map<string, string[]>()
   const references: { where: string; id: Id; what: string }[] = []
   const comboRows: string[] = []
+  const luckUpgradeRows: string[] = []
 
   for (const table of Object.keys(rowSchemas) as RowTableName[]) {
     const schema = rowSchemas[table]
@@ -109,7 +117,7 @@ export function validateContent(tables: RawTables = content): void {
       if ('unlock' in row) {
         for (const ref of referencedIds(row.unlock)) references.push({ where, id: ref, what: 'unlock' })
       }
-      if ('effect' in row) {
+      if ('effect' in row && 'target' in row.effect) {
         const die = charmDieTarget(row.effect.target)
         if (die !== null) references.push({ where, id: die, what: 'effect target' })
       }
@@ -117,6 +125,7 @@ export function validateContent(tables: RawTables = content): void {
         references.push({ where, id: row.condition.id, what: 'condition' })
       }
       if (table === 'combos') comboRows.push(row.id)
+      if (table === 'luckUpgrades') luckUpgradeRows.push(row.id)
     })
   }
 
@@ -142,6 +151,11 @@ export function validateContent(tables: RawTables = content): void {
   if (tables.combos !== undefined || comboRows.length > 0) {
     for (const id of COMBO_IDS) {
       if (!comboRows.includes(id)) problems.push(`combos: hand "${id}" has no row`)
+    }
+  }
+  if (tables.luckUpgrades !== undefined || luckUpgradeRows.length > 0) {
+    for (const id of LUCK_UPGRADE_IDS) {
+      if (!luckUpgradeRows.includes(id)) problems.push(`luckUpgrades: upgrade "${id}" has no row`)
     }
   }
 

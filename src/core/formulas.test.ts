@@ -5,28 +5,37 @@
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content, type DieDef } from '@/content'
-import { comboDef } from './defs'
+import { charmDef, comboDef, luckUpgradeDef } from './defs'
 import {
   ascensionMultiplier,
+  autoLevelAvailable,
   autoRollInterval,
   bulkCost,
   charmEffects,
+  charmsKept,
   comboMultiplier,
   comboUpgradeCost,
   dieMultiplier,
   draftGrowth,
+  draftOfferSize,
   draftRequirement,
   effectiveDieMultiplier,
+  expectedComboMultiplier,
   expectedPointsPerRoll,
   faceCap,
   faceUpgradeCost,
   findDie,
   globalMultiplier,
+  headStartLevel,
   levelCost,
   levelsBuyable,
   lowestFaceIndex,
+  luckAndUpgradesMultiplier,
+  luckEffects,
   luckMultiplier,
   luckOnReset,
+  luckUpgradeCost,
+  luckUpgradeLevel,
   maxAffordable,
   rollPoints,
   rollValues,
@@ -111,7 +120,8 @@ describe('effectiveDieMultiplier', () => {
     const ascended = { ...plain, level: 7, ascensions: 2 }
     expect(N.eq(effectiveDieMultiplier(base, ascended), 7 * rules.ascension.multiplier ** 2)).toBe(true)
     const charmed = { ...base, charms: ['oak_cup', 'oak_cup', 'tin_cup'] }
-    expect(N.eq(effectiveDieMultiplier(charmed, ascended), 7 * rules.ascension.multiplier ** 2 * 9)).toBe(true)
+    const cup = charmDef('oak_cup').effect.value
+    expect(N.eq(effectiveDieMultiplier(charmed, ascended), 7 * rules.ascension.multiplier ** 2 * cup * cup)).toBe(true)
     expect(N.isZero(effectiveDieMultiplier(base, { ...plain, owned: false, level: 0 }))).toBe(true)
   })
 
@@ -252,7 +262,8 @@ describe('rollPoints', () => {
     const edited: GameState = {
       ...base,
       dice: base.dice.map((die, i) => (i === 0 ? { ...die, faces: [7, 2, 3, 4, 5, 6], faceUpgrades: 6 } : die)),
-      luck: 5,
+      luck: 1,
+      luckTotal: 5,
       trophies: ['first_roll', 'hundred_rolls'],
       charms: ['worn_felt', 'golden_pip'],
     }
@@ -335,10 +346,11 @@ describe('face formulas', () => {
 })
 
 describe('global multipliers', () => {
-  it('luckMultiplier is 1 + perPoint x luck', () => {
+  it('luckMultiplier is 1 + perPoint x luckTotal, untouched by spending', () => {
     const state = createInitialState(1)
     expect(N.eq(luckMultiplier(state), 1)).toBe(true)
-    expect(close(luckMultiplier({ ...state, luck: 7 }), N.from(1 + 7 * rules.luck.perPoint))).toBe(true)
+    expect(close(luckMultiplier({ ...state, luck: 7, luckTotal: 7 }), N.from(1 + 7 * rules.luck.perPoint))).toBe(true)
+    expect(close(luckMultiplier({ ...state, luck: 0, luckTotal: 7 }), N.from(1 + 7 * rules.luck.perPoint))).toBe(true)
   })
 
   it('trophyMultiplier compounds per trophy', () => {
@@ -351,6 +363,7 @@ describe('global multipliers', () => {
     const state: GameState = {
       ...createInitialState(1),
       luck: 2,
+      luckTotal: 2,
       trophies: ['first_roll'],
       charms: ['worn_felt', 'silver_thimble', 'card_sharp', 'wound_spring', 'quick_hand', 'whittling_knife', 'second_helping', 'clay_cup'],
     }
@@ -360,7 +373,7 @@ describe('global multipliers', () => {
     expect(effects.autoroll).toBeCloseTo(0.85 * 0.7)
     expect(effects.faceCap).toBe(2)
     expect(effects.draftGrowth).toBeCloseTo(-0.05)
-    expect(N.eq(effects.dice.get('die_3') ?? N.zero, 3)).toBe(true)
+    expect(N.eq(effects.dice.get('die_3') ?? N.zero, charmDef('clay_cup').effect.value)).toBe(true)
     expect(effects.dice.has('die_1')).toBe(false)
     expect(close(globalMultiplier(state), N.from(1.25 * 1.5 * (1 + 2 * rules.luck.perPoint) * rules.trophy.multiplier))).toBe(true)
   })
@@ -385,18 +398,123 @@ describe('global multipliers', () => {
 })
 
 describe('luckOnReset', () => {
-  it('is floor(sqrt(run / threshold)) once the run has earned the threshold', () => {
+  it('is floor(perDecade x log10(run / threshold)) + 1 once the run has earned the threshold, exact on whole decades', () => {
     const state = createInitialState(1)
-    const at = (run: number): GameState => ({ ...state, totalEarned: N.from(run), totalEarnedRun: N.from(run) })
+    const at = (run: Num): GameState => ({ ...state, totalEarned: run, totalEarnedRun: run })
     const t = rules.luck.threshold
-    expect(luckOnReset(at(0))).toBe(0)
-    expect(luckOnReset(at(t - 1))).toBe(0)
-    expect(luckOnReset(at(t))).toBe(1)
-    expect(luckOnReset(at(3.99 * t))).toBe(1)
-    expect(luckOnReset(at(4 * t))).toBe(2)
-    expect(luckOnReset(at(9 * t))).toBe(3)
-    expect(luckOnReset(at(1e4 * t))).toBe(100)
-    expect(Number.isSafeInteger(luckOnReset({ ...state, totalEarnedRun: N.parse('1e700') }))).toBe(true)
+    const d = rules.luck.perDecade
+    const table: [Num, number][] = [
+      [N.zero, 0],
+      [N.from(t - 1), 0],
+      [N.from(t), 1],
+      [N.from(1.5 * t), Math.floor(d * Math.log10(1.5)) + 1],
+      [N.from(4 * t), Math.floor(d * Math.log10(4)) + 1],
+      [N.from(9.99 * t), Math.floor(d * Math.log10(9.99)) + 1],
+      [N.from(10 * t), d + 1],
+      [N.from(100 * t), 2 * d + 1],
+      [N.mul(t, N.parse('1e15')), 15 * d + 1],
+      [N.mul(t, N.parse('1e23')), 23 * d + 1],
+      [N.mul(t, N.parse('1e400')), 400 * d + 1],
+    ]
+    for (const [run, expected] of table) expect(luckOnReset(at(run)), N.serialize(run)).toBe(expected)
+    expect(Number.isSafeInteger(luckOnReset(at(N.parse('1e700'))))).toBe(true)
+  })
+
+  it('grows by perDecade per tenfold run, never by a multiple', () => {
+    const state = createInitialState(1)
+    const at = (run: Num): GameState => ({ ...state, totalEarned: run, totalEarnedRun: run })
+    const t = rules.luck.threshold
+    for (let decade = 0; decade < 30; decade++) {
+      const here = luckOnReset(at(N.mul(t, N.pow(10, decade))))
+      const next = luckOnReset(at(N.mul(t, N.pow(10, decade + 1))))
+      expect(next - here).toBe(rules.luck.perDecade)
+    }
+  })
+})
+
+describe('luck upgrades', () => {
+  const base = createInitialState(1)
+  const owning = (upgrades: GameState['luckUpgrades']): GameState => ({ ...base, luckUpgrades: upgrades })
+
+  it('luckUpgradeCost is ceil(baseCost x costGrowth ^ level), a whole number of luck, for every row', () => {
+    const series = (id: Parameters<typeof luckUpgradeDef>[0]) => {
+      const def = luckUpgradeDef(id)
+      return Array.from({ length: def.maxLevel }, (_, level) => luckUpgradeCost(def, level))
+    }
+    expect(series('head_start')).toEqual([2, 4, 6, 9, 14])
+    expect(series('quick_hands')).toEqual([1, 2, 3, 4, 6, 8, 12, 18])
+    expect(series('deep_pockets')).toEqual([1, 2, 2, 3, 4, 6, 8, 11, 15, 21])
+    expect(series('keen_eye')).toEqual([2, 4, 6, 9, 14])
+    expect(series('lucky_draw')).toEqual([4, 8])
+    expect(series('memory')).toEqual([5, 10, 20])
+    expect(series('steady_hands')).toEqual([3])
+    for (const def of content.luckUpgrades) {
+      for (let level = 0; level < def.maxLevel; level++) {
+        const cost = luckUpgradeCost(def, level)
+        expect(Number.isInteger(cost) && cost >= 1).toBe(true)
+        if (level > 0) expect(cost).toBeGreaterThanOrEqual(luckUpgradeCost(def, level - 1))
+      }
+    }
+  })
+
+  it('luckEffects folds nothing into the neutral effects and each kind into its own field', () => {
+    expect(luckEffects(base)).toEqual({ headStartLevel: 0, autoroll: 1, points: N.one, combo: N.one, offerBonus: 0, memory: 0, autoLevel: false })
+    expect(luckUpgradeLevel(base, 'deep_pockets')).toBe(0)
+    const all = owning({ head_start: 2, quick_hands: 3, deep_pockets: 4, keen_eye: 2, lucky_draw: 1, memory: 3, steady_hands: 1 })
+    const effects = luckEffects(all)
+    expect(effects.headStartLevel).toBe(20)
+    expect(effects.autoroll).toBeCloseTo(0.92 ** 3)
+    expect(close(effects.points, N.from(1.2 ** 4))).toBe(true)
+    expect(close(effects.combo, N.from(1 + 0.15 * 2))).toBe(true)
+    expect(effects.offerBonus).toBe(1)
+    expect(effects.memory).toBe(3)
+    expect(effects.autoLevel).toBe(true)
+    expect(luckUpgradeLevel(all, 'deep_pockets')).toBe(4)
+  })
+
+  it('deep_pockets multiplies every roll and keen_eye every hand, and both reach the expected value', () => {
+    const two = { ...base, dice: base.dice.map((die, i) => (i <= 1 ? { ...die, owned: true, level: 1 } : die)) }
+    const pockets = { ...two, luckUpgrades: { deep_pockets: 2 } }
+    expect(close(luckAndUpgradesMultiplier(pockets), N.from(1.2 ** 2))).toBe(true)
+    expect(close(globalMultiplier(pockets), N.from(1.2 ** 2))).toBe(true)
+    expect(close(rollPoints(pockets, [3, 5]), N.mul(rollPoints(two, [3, 5]), 1.2 ** 2))).toBe(true)
+    expect(close(expectedPointsPerRoll(pockets), N.mul(expectedPointsPerRoll(two), 1.2 ** 2))).toBe(true)
+    const eye = { ...two, luckUpgrades: { keen_eye: 2 } }
+    expect(close(comboMultiplier(eye, 'pair'), N.from(comboDef('pair').base * 1.3))).toBe(true)
+    expect(close(comboMultiplier({ ...eye, charms: ['card_sharp'] }, 'five_kind'), N.from(comboDef('five_kind').base * 1.25 * 1.3))).toBe(true)
+    expect(N.eq(rollPoints(eye, [3, 5]), rollPoints(two, [3, 5]))).toBe(true)
+    expect(close(rollPoints(eye, [5, 5]), N.mul(rollPoints(two, [5, 5]), 1.3))).toBe(true)
+    expect(N.gt(expectedComboMultiplier(eye), expectedComboMultiplier(two))).toBe(true)
+  })
+
+  it('quick_hands shortens the auto-roll interval on top of the charms, whole ms, at least 1', () => {
+    expect(autoRollInterval(owning({ quick_hands: 1 }))).toBe(Math.floor(rules.autoRoll.baseIntervalMs * 0.92))
+    expect(autoRollInterval({ ...owning({ quick_hands: 8 }), charms: ['quick_hand'] })).toBe(Math.floor(rules.autoRoll.baseIntervalMs * 0.92 ** 8 * 0.7))
+    expect(autoRollInterval({ ...owning({ quick_hands: 8 }), charms: Array.from({ length: 60 }, () => 'quick_hand') })).toBe(1)
+  })
+
+  it('lucky_draw widens the offer, head_start sets the starting level within the cap, steady_hands makes auto-level available', () => {
+    expect(draftOfferSize(base)).toBe(rules.draft.offerSize)
+    expect(draftOfferSize(owning({ lucky_draw: 2 }))).toBe(rules.draft.offerSize + 2)
+    expect(headStartLevel(luckEffects(base))).toBe(1)
+    expect(headStartLevel(luckEffects(owning({ head_start: 1 })))).toBe(10)
+    expect(headStartLevel(luckEffects(owning({ head_start: 5 })))).toBe(50)
+    expect(headStartLevel({ ...luckEffects(base), headStartLevel: 1e6 })).toBe(rules.ascension.level)
+    expect(autoLevelAvailable(base)).toBe(false)
+    expect(autoLevelAvailable(owning({ steady_hands: 1 }))).toBe(true)
+  })
+
+  it('charmsKept keeps the rarest charms first, pick order on ties, and the whole list when the count covers it', () => {
+    const held = ['worn_felt', 'silver_thimble', 'golden_pip', 'chalk_mark', 'card_sharp']
+    expect(charmsKept(held, 0)).toEqual([])
+    expect(charmsKept([], 3)).toEqual([])
+    expect(charmsKept(held, 1)).toEqual(['golden_pip'])
+    expect(charmsKept(held, 2)).toEqual(['golden_pip', 'silver_thimble'])
+    expect(charmsKept(held, 3)).toEqual(['golden_pip', 'silver_thimble', 'card_sharp'])
+    expect(charmsKept(held, 4)).toEqual(['golden_pip', 'silver_thimble', 'card_sharp', 'worn_felt'])
+    expect(charmsKept(held, 5)).toEqual(held)
+    expect(charmsKept(held, 9)).toEqual(held)
+    expect(charmsKept(['oak_cup', 'oak_cup', 'tin_cup'], 2)).toEqual(['oak_cup', 'oak_cup'])
   })
 })
 

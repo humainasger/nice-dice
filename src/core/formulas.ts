@@ -1,9 +1,21 @@
 // The formulas. Every constant comes from src/content and every game value is a Num; the only
 // plain arithmetic here is on content numbers, levels and counts. Points per roll:
 // (sum over owned dice of printed face x die multiplier) x best combo x charms x luck x trophies,
-// where die multiplier = baseMultiplier x level x ascension^ascensions x die charms.
-import { charmDieTarget, type ComboId, type DieDef, type Id, type UnlockCondition } from '@/content'
-import { charmDef, comboDef, dieDef, rules } from './defs'
+// where die multiplier = baseMultiplier x level x ascension^ascensions x die charms, the combo
+// carries the keen_eye upgrade and "luck" is 1 + perPoint x luckTotal times the deep_pockets
+// upgrade. The luck upgrades (src/content/luckUpgrades.ts) fold into LuckEffects the way charms
+// fold into CharmEffects.
+import {
+  charmDieTarget,
+  LUCK_UPGRADE_IDS,
+  type ComboId,
+  type DieDef,
+  type Id,
+  type LuckUpgradeDef,
+  type LuckUpgradeId,
+  type UnlockCondition,
+} from '@/content'
+import { charmDef, comboDef, dieDef, luckUpgradeDef, rarityOrder, rules } from './defs'
 import { bestHand, handCounts } from './hands'
 import { N, type Num } from './num'
 import type { DieState, GameState } from './state'
@@ -166,14 +178,112 @@ export function effectiveDieMultiplier(state: GameState, die: DieState, effects:
   return charm === undefined ? base : N.mul(base, charm)
 }
 
+/** The level of a luck upgrade (0 when never bought). */
+export const luckUpgradeLevel = (state: GameState, id: LuckUpgradeId): number => state.luckUpgrades[id] ?? 0
+
+/** Luck price of the next level of an upgrade after `level` levels: ceil(baseCost x costGrowth ^ level). A whole number of luck. */
+export function luckUpgradeCost(def: LuckUpgradeDef, level: number): number {
+  return Math.ceil(def.baseCost * Math.pow(def.costGrowth, level))
+}
+
+/** Every luck upgrade effect owned, folded into one object the formulas read. */
+export interface LuckEffects {
+  /** Level die_1 starts a new run at from head_start; 0 means the plain level 1. */
+  readonly headStartLevel: number
+  /** Product of the quick_hands interval factors (plain, it scales milliseconds). */
+  readonly autoroll: number
+  /** Product of the deep_pockets points multipliers. */
+  readonly points: Num
+  /** Combo multiplier factor from keen_eye: 1 + value x level. */
+  readonly combo: Num
+  /** Extra charms per draft offer from lucky_draw. */
+  readonly offerBonus: number
+  /** Charms a luck reset keeps, from memory. */
+  readonly memory: number
+  /** steady_hands is owned, so auto-level can run. */
+  readonly autoLevel: boolean
+}
+
+const NO_UPGRADES: LuckEffects = { headStartLevel: 0, autoroll: 1, points: N.one, combo: N.one, offerBonus: 0, memory: 0, autoLevel: false }
+
+/** Folds the owned luck upgrades. Each effect kind is applied in exactly one way; see the content schema. */
+export function luckEffects(state: GameState): LuckEffects {
+  let found = false
+  let headStartLevel = 0
+  let autoroll = 1
+  let points = N.one
+  let combo = N.one
+  let offerBonus = 0
+  let memory = 0
+  let autoLevel = false
+  for (const id of LUCK_UPGRADE_IDS) {
+    const level = luckUpgradeLevel(state, id)
+    if (level <= 0) continue
+    found = true
+    const { kind, value } = luckUpgradeDef(id).effect
+    switch (kind) {
+      case 'head_start':
+        headStartLevel += value * level
+        break
+      case 'quick_hands':
+        autoroll *= Math.pow(value, level)
+        break
+      case 'deep_pockets':
+        points = N.mul(points, N.pow(value, level))
+        break
+      case 'keen_eye':
+        combo = N.add(combo, N.mul(value, level))
+        break
+      case 'lucky_draw':
+        offerBonus += value * level
+        break
+      case 'memory':
+        memory += value * level
+        break
+      case 'steady_hands':
+        autoLevel = true
+        break
+    }
+  }
+  return found ? { headStartLevel, autoroll, points, combo, offerBonus, memory, autoLevel } : NO_UPGRADES
+}
+
+/** Auto-level can run: the steady_hands upgrade is owned. */
+export function autoLevelAvailable(state: GameState): boolean {
+  return luckEffects(state).autoLevel
+}
+
+/** The level die_1 starts a new run at: head_start levels, never below 1 and never past the cap. */
+export function headStartLevel(effects: LuckEffects): number {
+  return Math.max(1, Math.min(levelCap(), Math.floor(effects.headStartLevel)))
+}
+
+/**
+ * The charms a luck reset keeps: up to `count`, highest rarity first (rarityOrder, the content
+ * enum order), ties in pick order. The whole list when count covers it, nothing for count 0.
+ */
+export function charmsKept(charms: readonly Id[], count: number): Id[] {
+  if (count <= 0 || charms.length === 0) return []
+  if (count >= charms.length) return [...charms]
+  const ranked = charms.map((id, index) => ({ id, index, rank: rarityOrder.indexOf(charmDef(id).rarity) }))
+  ranked.sort((a, b) => b.rank - a.rank || a.index - b.index)
+  return ranked.slice(0, count).map((entry) => entry.id)
+}
+
 /** The upgrade level of a hand (0 when never upgraded). */
 export const comboLevel = (state: GameState, id: ComboId): number => state.combos[id] ?? 0
 
-/** Points multiplier of a hand at its current level: base x (1 + step x level) x combo charms. */
-export function comboMultiplier(state: GameState, id: ComboId, effects: CharmEffects = charmEffects(state)): Num {
+/** Points multiplier of a hand at its current level: base x (1 + step x level) x combo charms x keen_eye. */
+export function comboMultiplier(
+  state: GameState,
+  id: ComboId,
+  effects: CharmEffects = charmEffects(state),
+  upgrades: LuckEffects = luckEffects(state),
+): Num {
   const def = comboDef(id)
   const levelled = N.mul(def.base, N.add(1, N.mul(rules.combo.step, comboLevel(state, id))))
-  return N.eq(effects.combo, N.one) ? levelled : N.mul(levelled, effects.combo)
+  const charmed = N.eq(effects.combo, N.one) ? levelled : N.mul(levelled, effects.combo)
+  return N.eq(upgrades.combo, N.one) ? charmed : N.mul(charmed, upgrades.combo)
 }
 
 /** Cost of the next upgrade of a hand at `level`: upgradeCost x costGrowth ^ level. */
@@ -200,9 +310,9 @@ export function lowestFaceIndex(faces: readonly number[]): number {
   return best
 }
 
-/** Points multiplier from luck: 1 + perPoint x luck. */
+/** Points multiplier from luck: 1 + perPoint x luckTotal (lifetime luck, spending it takes nothing away). */
 export function luckMultiplier(state: GameState): Num {
-  return N.add(1, N.mul(rules.luck.perPoint, state.luck))
+  return N.add(1, N.mul(rules.luck.perPoint, state.luckTotal))
 }
 
 /** Points multiplier from trophies: rules.trophy.multiplier per trophy held. */
@@ -210,18 +320,41 @@ export function trophyMultiplier(state: GameState): Num {
   return N.pow(rules.trophy.multiplier, state.trophies.length)
 }
 
-/** Luck granted by a prestige right now: floor(sqrt(totalEarnedRun / threshold)), 0 below the threshold. */
+/**
+ * log10 of a positive Num from its exact serialized "<m>e<e>" form (1 <= m < 10 in canonical
+ * form), so a whole number of decades comes out exact and the double range is no limit. NaN for
+ * a non-finite value, whose text has no exponent part.
+ */
+function log10(value: Num): number {
+  const [mantissa, exponent] = N.serialize(value).split('e')
+  return Math.log10(Number(mantissa)) + Number(exponent)
+}
+
+/**
+ * Luck granted by a prestige right now: floor(perDecade x log10(totalEarnedRun / threshold)) + 1
+ * once the run has reached the threshold, 0 below it. A log curve, so a run ten times richer is
+ * worth perDecade more luck, not a multiple.
+ */
 export function luckOnReset(state: GameState): number {
   const ratio = N.div(state.totalEarnedRun, rules.luck.threshold)
   if (N.lt(ratio, 1)) return 0
-  // Floor in doubles: Decimal.toNumber is not integer-exact past about 1e10, and luck is a count.
-  const root = N.toNumber(N.pow(ratio, 1 / 2))
-  return Number.isFinite(root) ? Math.min(Math.floor(root), MAX_COUNT) : MAX_COUNT
+  const decades = log10(ratio)
+  if (!Number.isFinite(decades)) return MAX_COUNT
+  return Math.min(Math.floor(rules.luck.perDecade * decades) + 1, MAX_COUNT)
 }
 
-/** The auto-roll interval with the held charms applied, whole milliseconds, at least 1. */
-export function autoRollInterval(state: GameState, effects: CharmEffects = charmEffects(state)): number {
-  return Math.max(1, Math.floor(rules.autoRoll.baseIntervalMs * effects.autoroll))
+/** The auto-roll interval with the held charms and the quick_hands upgrade applied, whole milliseconds, at least 1. */
+export function autoRollInterval(
+  state: GameState,
+  effects: CharmEffects = charmEffects(state),
+  upgrades: LuckEffects = luckEffects(state),
+): number {
+  return Math.max(1, Math.floor(rules.autoRoll.baseIntervalMs * effects.autoroll * upgrades.autoroll))
+}
+
+/** Charms in a draft offer: the content size plus the lucky_draw upgrade. */
+export function draftOfferSize(state: GameState, upgrades: LuckEffects = luckEffects(state)): number {
+  return rules.draft.offerSize + Math.floor(upgrades.offerBonus)
 }
 
 /** Draft requirement growth with charms applied, never below 1. */
@@ -234,9 +367,19 @@ export function draftRequirement(state: GameState, effects: CharmEffects = charm
   return Math.ceil(Math.pow(draftGrowth(state, effects), state.draft.taken))
 }
 
-/** Multipliers that apply to every roll: points charms x luck x trophies. */
-export function globalMultiplier(state: GameState, effects: CharmEffects = charmEffects(state)): Num {
-  return N.mul(N.mul(effects.points, luckMultiplier(state)), trophyMultiplier(state))
+/** Everything luck gives every roll: 1 + perPoint x luckTotal, times the deep_pockets upgrade. */
+export function luckAndUpgradesMultiplier(state: GameState, upgrades: LuckEffects = luckEffects(state)): Num {
+  const luck = luckMultiplier(state)
+  return N.eq(upgrades.points, N.one) ? luck : N.mul(luck, upgrades.points)
+}
+
+/** Multipliers that apply to every roll: points charms x luck (with deep_pockets) x trophies. */
+export function globalMultiplier(
+  state: GameState,
+  effects: CharmEffects = charmEffects(state),
+  upgrades: LuckEffects = luckEffects(state),
+): Num {
+  return N.mul(N.mul(effects.points, luckAndUpgradesMultiplier(state, upgrades)), trophyMultiplier(state))
 }
 
 /** The printed value each owned die shows for the side it landed on. faces follow the owned dice in content order. */
@@ -257,6 +400,7 @@ export function rollValues(state: GameState, faces: readonly number[]): number[]
 /** Points for one roll of the given sides: the face sum times the best hand times the global multipliers. */
 export function rollPoints(state: GameState, faces: readonly number[]): Num {
   const effects = charmEffects(state)
+  const upgrades = luckEffects(state)
   const values = rollValues(state, faces)
   let total = N.zero
   let next = 0
@@ -267,8 +411,8 @@ export function rollPoints(state: GameState, faces: readonly number[]): Num {
   }
   // Only the owned dice make the hand; a caller passing more sides than dice has the extras ignored.
   const hand = bestHand(faces.length === values.length ? faces : faces.slice(0, values.length))
-  if (hand !== null) total = N.mul(total, comboMultiplier(state, hand, effects))
-  return N.mul(total, globalMultiplier(state, effects))
+  if (hand !== null) total = N.mul(total, comboMultiplier(state, hand, effects, upgrades))
+  return N.mul(total, globalMultiplier(state, effects, upgrades))
 }
 
 /** The hand counts for the owned dice, or null with no die owned. Every content die has the same sides. */
@@ -290,10 +434,11 @@ export function expectedPointsPerRoll(state: GameState): Num {
   if (found === null) return N.zero
   const { owned, sides, counts } = found
   const effects = charmEffects(state)
+  const upgrades = luckEffects(state)
   // weight[side - 1] = sum over the patterns whose first die shows that side of the best hand's multiplier.
   const weight: Num[] = Array.from({ length: sides }, () => N.zero)
   for (const [hand, row] of counts.byFace) {
-    const multiplier = hand === null ? N.one : comboMultiplier(state, hand, effects)
+    const multiplier = hand === null ? N.one : comboMultiplier(state, hand, effects, upgrades)
     row.forEach((count, index) => {
       if (count > 0) weight[index] = N.add(weight[index] ?? N.zero, N.mul(multiplier, count))
     })
@@ -306,7 +451,7 @@ export function expectedPointsPerRoll(state: GameState): Num {
     })
     total = N.add(total, N.mul(effectiveDieMultiplier(state, die, effects), mean))
   }
-  return N.mul(N.div(total, counts.patterns), globalMultiplier(state, effects))
+  return N.mul(N.div(total, counts.patterns), globalMultiplier(state, effects, upgrades))
 }
 
 /** Mean best-hand multiplier over every pattern of the owned dice (1 with fewer than two dice). */
@@ -314,9 +459,10 @@ export function expectedComboMultiplier(state: GameState): Num {
   const found = ownedHandCounts(state)
   if (found === null) return N.one
   const effects = charmEffects(state)
+  const upgrades = luckEffects(state)
   let total = N.zero
   for (const [hand, count] of found.counts.total) {
-    total = N.add(total, N.mul(hand === null ? N.one : comboMultiplier(state, hand, effects), count))
+    total = N.add(total, N.mul(hand === null ? N.one : comboMultiplier(state, hand, effects, upgrades), count))
   }
   return N.div(total, found.counts.patterns)
 }

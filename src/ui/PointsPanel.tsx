@@ -89,7 +89,7 @@ export function PointsPanel() {
         <Chip label="dice" value={b.dice} title="Sum of your dice's output multipliers" />
         <Chip label="combo" value={b.combo} title="Expected best-hand multiplier over every roll of your dice" />
         <Chip label="charms" value={b.charms} tone="cool" title="Points charms held this run" />
-        <Chip label="luck" value={b.luck} tone="cool" title="Luck kept across prestiges" />
+        <Chip label="luck" value={b.luck} tone="cool" title="Lifetime luck, times Deep Pockets from the luck shop" />
         <Chip label="trophies" value={b.trophies} tone="amber" title="Every trophy held" />
         <Chip label="total" value={b.total} strong title="What one face point is worth, on average" />
       </ul>

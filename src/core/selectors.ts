@@ -1,8 +1,19 @@
 // Pure read helpers for the UI and the sim. They return plain data computed from a state and the
 // content tables; nothing here changes state.
-import { content, type CharmDef, type ComboDef, type ComboId, type DieDef, type Id, type TrophyDef, type UnlockCondition } from '@/content'
+import {
+  content,
+  type CharmDef,
+  type ComboDef,
+  type ComboId,
+  type DieDef,
+  type Id,
+  type LuckUpgradeDef,
+  type LuckUpgradeId,
+  type TrophyDef,
+  type UnlockCondition,
+} from '@/content'
 import { canAscendDie } from './ascend'
-import { charmDef, comboDef, dieDef, rules } from './defs'
+import { charmDef, comboDef, dieDef, luckUpgradeDef, rules } from './defs'
 import {
   charmEffects,
   comboLevel,
@@ -19,8 +30,11 @@ import {
   levelCost,
   levelsBuyable,
   lowestFaceIndex,
+  luckAndUpgradesMultiplier,
   luckMultiplier,
   luckOnReset,
+  luckUpgradeCost,
+  luckUpgradeLevel,
   trophyMultiplier,
   unlockSatisfied,
 } from './formulas'
@@ -161,11 +175,9 @@ export function canAscend(state: GameState, id: Id): boolean {
 export interface LuckPreview {
   /** The run has earned the threshold. */
   readonly unlocked: boolean
-  /** Luck a prestige grants right now (0 while locked). */
+  /** Luck a prestige grants right now (0 while locked): floor(perDecade x log10(run / threshold)) + 1. */
   readonly onReset: number
   readonly threshold: Num
-  /** The points multiplier luck gives right now. */
-  readonly multiplier: Num
 }
 
 export function luckPreview(state: GameState): LuckPreview {
@@ -174,8 +186,50 @@ export function luckPreview(state: GameState): LuckPreview {
     unlocked: N.gte(state.totalEarnedRun, threshold),
     onReset: luckOnReset(state),
     threshold,
-    multiplier: luckMultiplier(state),
   }
+}
+
+export interface LuckSummary {
+  /** Spendable luck. */
+  readonly luck: number
+  /** Lifetime luck, which drives the multiplier. */
+  readonly luckTotal: number
+  /** 1 + rules.luck.perPoint x luckTotal. */
+  readonly multiplier: Num
+  /** Luck per decade of run points past the threshold. */
+  readonly perDecade: number
+  readonly threshold: Num
+}
+
+/** The luck shop header: what can be spent, what has been earned, and what it multiplies. */
+export function luckSummary(state: GameState): LuckSummary {
+  return {
+    luck: state.luck,
+    luckTotal: state.luckTotal,
+    multiplier: luckMultiplier(state),
+    perDecade: rules.luck.perDecade,
+    threshold: N.from(rules.luck.threshold),
+  }
+}
+
+export interface LuckUpgradeView {
+  readonly def: LuckUpgradeDef
+  readonly level: number
+  readonly maxLevel: number
+  /** Luck price of the next level, or null at the cap. */
+  readonly nextCost: number | null
+  /** Below the cap and the luck covers nextCost: a buyLuckUpgrade command would succeed. */
+  readonly affordable: boolean
+  readonly maxed: boolean
+}
+
+/** Everything a luck upgrade row shows. Throws on an id that is not in content. */
+export function luckUpgradeView(state: GameState, id: LuckUpgradeId): LuckUpgradeView {
+  const def = luckUpgradeDef(id)
+  const level = luckUpgradeLevel(state, id)
+  const maxed = level >= def.maxLevel
+  const nextCost = maxed ? null : luckUpgradeCost(def, level)
+  return { def, level, maxLevel: def.maxLevel, nextCost, affordable: nextCost !== null && state.luck >= nextCost, maxed }
 }
 
 export interface DraftView {
@@ -224,6 +278,7 @@ export interface MultiplierBreakdown {
   readonly combo: Num
   /** Product of the `points` charms. */
   readonly charms: Num
+  /** Everything luck gives: 1 + perPoint x luckTotal, times the deep_pockets upgrade. */
   readonly luck: Num
   readonly trophies: Num
   /** dice x combo x charms x luck x trophies. */
@@ -236,7 +291,7 @@ export function multiplierBreakdown(state: GameState): MultiplierBreakdown {
   for (const die of state.dice) dice = N.add(dice, effectiveDieMultiplier(state, die, effects))
   const combo = expectedComboMultiplier(state)
   const charms = effects.points
-  const luck = luckMultiplier(state)
+  const luck = luckAndUpgradesMultiplier(state)
   const trophies = trophyMultiplier(state)
   const total = N.mul(N.mul(N.mul(N.mul(dice, combo), charms), luck), trophies)
   return { dice, combo, charms, luck, trophies, total }

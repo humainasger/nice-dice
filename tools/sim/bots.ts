@@ -6,9 +6,11 @@
 // the share of the dice sum its lift of the mean hand multiplier amounts to, a face upgrade the
 // share of its die's multiplier one more pip on one side amounts to. The greedy M3 rules: ascend
 // whenever a die can, pick the charm that lifts income most, prestige once luckOnReset is at least
-// 2 and 20 minutes have passed since the last prestige.
-import { content } from '@/content'
+// 2 and 20 minutes have passed since the last prestige. The M4 rule (m4-luck.md section 4): right
+// after each luck reset, buy luck upgrades greedily by income lift per luck spent.
+import { content, LUCK_UPGRADE_IDS, type LuckUpgradeEffectKind, type LuckUpgradeId } from '@/content'
 import {
+  autoRollInterval,
   bulkCost,
   canAscend,
   comboView,
@@ -20,6 +22,7 @@ import {
   expectedPointsPerRoll,
   levelsBuyable,
   luckOnReset,
+  luckUpgradeView,
   N,
   type Command,
   type GameState,
@@ -226,9 +229,75 @@ export function shouldPrestige(state: GameState): boolean {
   return state.prestiges === 0 || state.playMs - state.stats.lastLuckAt >= PRESTIGE_COOLDOWN_MS
 }
 
-/** The M3 round every bot shares: prestige, ascend, draft, then shop. */
+/**
+ * Income lift per level assumed for the upgrades whose payoff the income figure cannot see right
+ * after a reset: head_start (the first minutes of a run go several times faster), lucky_draw (a
+ * wider offer means a better pick per draft), memory (a kept rare or epic charm is worth x1.5 to
+ * x2 from the first roll) and steady_hands (a convenience; the bot shops for itself). The other
+ * three are measured on a trial state.
+ */
+export const ASSUMED_LUCK_LIFT: Readonly<Partial<Record<LuckUpgradeEffectKind, number>>> = {
+  head_start: 0.5,
+  lucky_draw: 0.15,
+  memory: 0.4,
+  steady_hands: 0.05,
+}
+
+export interface LuckPurchase {
+  readonly id: LuckUpgradeId
+  /** Relative income lift of the next level, measured or assumed. */
+  readonly lift: number
+  /** Lift per luck spent; the rank key. */
+  readonly ratio: number
+  readonly cost: number
+  readonly affordable: boolean
+}
+
+/** Income from the formulas with the interval re-derived, so a trial state with one more quick_hands shows its lift. */
+function incomeOf(state: GameState): Num {
+  const perRoll = expectedPointsPerRoll(state)
+  if (!state.autoRoll.unlocked || !state.autoRoll.enabled) return perRoll
+  return N.div(N.mul(perRoll, 1000), autoRollInterval(state))
+}
+
+/** Every luck upgrade below its cap, ranked by income lift per luck, best first. Ties go to content order. */
+export function rankLuckUpgrades(state: GameState): LuckPurchase[] {
+  const found: LuckPurchase[] = []
+  const base = incomeOf(state)
+  for (const id of LUCK_UPGRADE_IDS) {
+    const view = luckUpgradeView(state, id)
+    if (view.maxed || view.nextCost === null) continue
+    const assumed = ASSUMED_LUCK_LIFT[view.def.effect.kind]
+    let lift = assumed ?? 0
+    if (assumed === undefined) {
+      const trial: GameState = { ...state, luckUpgrades: { ...state.luckUpgrades, [id]: view.level + 1 } }
+      lift = N.isZero(base) ? 0 : N.toNumber(N.div(incomeOf(trial), base)) - 1
+    }
+    found.push({ id, lift, ratio: lift / view.nextCost, cost: view.nextCost, affordable: view.affordable })
+  }
+  return found.sort((a, b) => b.ratio - a.ratio)
+}
+
+/** Buys the best affordable luck upgrade by lift per luck, re-ranking after each buy, until the luck runs out. */
+export function buyLuckUpgrades(state: GameState): GameState {
+  let next = state
+  for (let round = 0; round < MAX_PURCHASES_PER_ROUND; round++) {
+    const best = rankLuckUpgrades(next).find((purchase) => purchase.affordable)
+    if (best === undefined) break
+    const after = dispatch(next, { type: 'buyLuckUpgrade', id: best.id })
+    if (after === next) break
+    next = after
+  }
+  return next
+}
+
+/** The round every bot shares: prestige (then the luck shop), ascend, draft, then shop. */
 function manage(state: GameState): GameState {
-  let next = shouldPrestige(state) ? dispatch(state, { type: 'prestige' }) : state
+  let next = state
+  if (shouldPrestige(state)) {
+    next = dispatch(state, { type: 'prestige' })
+    if (next !== state) next = buyLuckUpgrades(next)
+  }
   next = ascendAll(next)
   next = pickCharms(next)
   return buyGreedily(next)

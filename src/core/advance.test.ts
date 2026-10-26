@@ -1,12 +1,16 @@
 // advance and applyOffline: deterministic for a seed, one roll per full interval, nothing while
 // locked or disabled, the same object when nothing changes, the auto-ascend sweep, trophies after
-// rolls, ticks up to the cap then the expected-value remainder, negative time clamped to nothing.
+// rolls, auto-level once per simulated second (cheapest level, then the next die, never
+// overspending), ticks up to the cap then the expected-value remainder, negative time clamped to
+// nothing.
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
 import { advance, applyOffline } from './advance'
+import { autoLevelOnce } from './autoLevel'
 import { dispatch } from './commands'
-import { expectedPointsPerRoll } from './formulas'
+import { dieDef } from './defs'
+import { expectedPointsPerRoll, levelCost } from './formulas'
 import { N, type Num } from './num'
 import { createInitialState, parseSave, serializeState } from './save'
 import type { GameState } from './state'
@@ -162,6 +166,109 @@ describe('advance', () => {
     expect(auto.rng).toEqual(manual.rng)
     expect(N.eq(auto.points, manual.points)).toBe(true)
     expect(auto.lastRoll?.faces).toEqual(manual.lastRoll?.faces)
+  })
+})
+
+describe('auto-level', () => {
+  const EVERY = content.rules.luck.autoLevelEveryMs
+  /** Steady Hands owned and on, auto-roll off so no roll income muddies the purse, two dice owned. */
+  const steady = (purse: number, extra: Partial<GameState> = {}): GameState => {
+    const base = createInitialState(1)
+    return {
+      ...base,
+      points: N.from(purse),
+      totalEarned: N.from(purse),
+      totalEarnedRun: N.from(purse),
+      dice: base.dice.map((die, i) => (i === 1 ? { ...die, owned: true, level: 1 } : die)),
+      luck: 0,
+      luckTotal: 3,
+      luckUpgrades: { steady_hands: 1 },
+      autoLevel: true,
+      ...extra,
+    }
+  }
+  const [die1, die2, die3] = content.dice
+  if (!die1 || !die2 || !die3) throw new Error('these tests need three content dice')
+
+  it('does nothing until a whole second has passed, then buys the cheapest affordable level once', () => {
+    const state = steady(50)
+    const almost = tick(state, EVERY / 100 - 1)
+    expect(almost.dice).toBe(state.dice)
+    expect(almost.points).toBe(state.points)
+    const second = advance(almost, 100)
+    // die_1 level 1 costs 10.8, die_2 level 1 costs 108: the first die is the cheaper level.
+    expect(N.lt(levelCost(die1, 1), levelCost(die2, 1))).toBe(true)
+    expect(second.dice[0]?.level).toBe(2)
+    expect(second.dice[1]?.level).toBe(1)
+    expect(N.eq(second.points, N.sub(state.points, levelCost(die1, 1)))).toBe(true)
+    expect(second.totalEarned).toBe(state.totalEarned)
+    // The level unlocked auto-roll, as the player's own levelDie would.
+    expect(second.autoRoll.unlocked).toBe(true)
+    const third = tick(second, EVERY / 100)
+    expect(third.dice[0]?.level).toBe(3)
+  })
+
+  it('is exactly one autoLevelOnce per second boundary, so a long dt runs one pass per second crossed', () => {
+    const state = steady(2000)
+    const stepped = advance(state, 3 * EVERY)
+    let manual: GameState = { ...state, playMs: 3 * EVERY }
+    for (let pass = 0; pass < 3; pass++) manual = autoLevelOnce(manual)
+    expect(serializeState(stepped)).toBe(serializeState(manual))
+    expect(stepped.dice[0]?.level).toBeGreaterThan(state.dice[0]?.level ?? 0)
+  })
+
+  it('buys the next die when it is affordable, after the level', () => {
+    const state = steady(2000)
+    const next = advance(state, EVERY)
+    expect(next.dice[0]?.level).toBe(2)
+    expect(next.dice[2]).toMatchObject({ owned: true, level: 1 })
+    expect(next.dice[3]?.owned).toBe(false)
+    expect(N.eq(next.points, N.sub(N.sub(state.points, levelCost(die1, 1)), die3.baseCost))).toBe(true)
+    expect(next.trophies).toContain('third_die')
+    const poor = steady(die3.baseCost - 1)
+    const left = advance(poor, EVERY)
+    expect(left.dice[2]?.owned).toBe(false)
+  })
+
+  it('respects the switch and needs the upgrade', () => {
+    const off = steady(500, { autoLevel: false })
+    expect(advance(off, EVERY).dice).toBe(off.dice)
+    const unowned = steady(500, { luckUpgrades: {}, luckTotal: 0 })
+    expect(advance(unowned, EVERY).dice).toBe(unowned.dice)
+    const on = dispatch(off, { type: 'setAutoLevel', enabled: true })
+    expect(advance(on, EVERY).dice[0]?.level).toBe(2)
+  })
+
+  it('never overspends: for any purse the purse stays at or above zero and pays exactly for what was bought', () => {
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 5000, noNaN: true }), fc.integer({ min: 1, max: 5 }), (purse, seconds) => {
+        const state = steady(purse)
+        const next = advance(state, seconds * EVERY)
+        if (N.lt(next.points, 0)) return false
+        let spent = N.zero
+        for (const [index, after] of next.dice.entries()) {
+          const before = state.dice[index]
+          if (before === undefined) return false
+          if (!before.owned && after.owned) spent = N.add(spent, dieDef(after.id).baseCost)
+          const from = before.owned ? before.level : 1
+          for (let level = from; level < after.level; level++) spent = N.add(spent, levelCost(dieDef(after.id), level))
+          if (after.level - from > seconds) return false
+        }
+        // Within rounding: the purse minus a cost and plus it again lands within a few ulps of where it started.
+        const drift = abs(N.sub(N.add(next.points, spent), state.points))
+        return N.lte(drift, N.add(N.mul(state.points, 1e-9), 1e-9))
+      }),
+      { numRuns: 300 },
+    )
+  })
+
+  it('leaves a capped die to auto-ascend and keeps the state loadable', () => {
+    const base = steady(1e12)
+    const capped: GameState = { ...base, dice: base.dice.map((die, i) => (i === 0 ? { ...die, level: CAP } : die)) }
+    const next = advance(capped, EVERY)
+    expect(next.dice[0]).toMatchObject({ level: 1, ascensions: 1 })
+    expect(next.dice[1]?.level).toBe(2)
+    expect(parseSave(serializeState(next)).ok).toBe(true)
   })
 })
 

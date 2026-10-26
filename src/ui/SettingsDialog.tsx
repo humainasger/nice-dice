@@ -1,7 +1,8 @@
 // Settings: theme, reduced motion, the save as an export string, import behind a confirmation
-// step, reset behind a typed confirmation, and the save status line. The body mounts fresh on
-// every open (Radix unmounts closed dialog content), so its local state needs no reset effect and
-// the export string is read at open time.
+// step, the stored backups with a restore behind a confirmation step (BackupsSection), reset
+// behind a typed confirmation, and the save status line. The body mounts fresh on every open
+// (Radix unmounts closed dialog content), so its local state needs no reset effect and the export
+// string and the backup list are read at open time.
 import { useRef, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 import { formatSaveStatus, selectLastSavedAt, selectPersisted, selectReduceMotion, selectSaveError, selectSound, selectTheme } from '@/app/selectors'
@@ -15,6 +16,7 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { BackupsSection } from './meta/BackupsSection'
 import { useNow } from './useNow'
 
 const RESET_WORD = 'RESET'
@@ -34,7 +36,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       >
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Theme, motion and sound, your save as text, and a fresh start.</DialogDescription>
+          <DialogDescription>Theme, motion and sound, your save as text, the stored backups, and a fresh start.</DialogDescription>
         </DialogHeader>
         <SettingsBody onClose={() => onOpenChange(false)} />
         <DialogFooter>
@@ -291,6 +293,15 @@ function SettingsBody({ onClose }: { readonly onClose: () => void }) {
           </div>
         )}
       </section>
+
+      <Separator />
+
+      <BackupsSection
+        onRestored={() => {
+          setExportText(exportString())
+          setImportStage('idle')
+        }}
+      />
 
       <Separator />
 

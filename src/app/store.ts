@@ -1,8 +1,10 @@
 // The one vanilla Zustand store: { game, ui }. game is the pure GameState (Decimals stay here);
-// ui holds app-only state (boot and lock flags, the away summary, settings, save status). UI
-// components read through useGameStore with primitive or string selectors (selectors.ts) and
-// write through the action functions below. Settings persist in localStorage on their own key,
-// never inside the game save.
+// ui holds app-only state (boot and lock flags, the away summary, settings, save status, the
+// put-aside draft, the trophy toast queue). UI components read through useGameStore with primitive
+// or string selectors (selectors.ts) and write through the action functions below. Settings persist
+// in localStorage on their own key, never inside the game save. Every core transition (send, tick,
+// creditOffline) lands through commit, which queues the trophies that change awarded; a store
+// subscription clears the draft dismissal whenever the offer itself changes.
 import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
 import {
@@ -77,6 +79,10 @@ export interface UiState {
   readonly save: SaveStatus
   /** A new build is installed and waiting; the update banner offers the reload. */
   readonly updateReady: boolean
+  /** The player put the open draft aside ("Decide later"). Cleared the moment the offer changes. */
+  readonly draftDismissed: boolean
+  /** Trophies awarded and not yet shown, oldest first; the toast shows the head and shifts. */
+  readonly trophyQueue: readonly string[]
 }
 
 export interface StoreState {
@@ -142,21 +148,76 @@ export const store = createStore<StoreState>(() => ({
     recovery: null,
     settings: readSettings(),
     save: { lastSavedAt: null, persisted: null, error: null, quarantined: false },
+    draftDismissed: false,
+    trophyQueue: [],
   },
 }))
+
+// A dismissed draft stays dismissed only for the offer it was dismissed on: a pick, a reroll, a
+// new offer or a loaded game all change the offer's identity and bring the dialog back.
+store.subscribe((state, previous) => {
+  if (state.ui.draftDismissed && state.game.draft.offer !== previous.game.draft.offer) {
+    store.setState({ ui: { ...state.ui, draftDismissed: false } })
+  }
+})
+
+/** Trophy ids in next that prev did not hold, in award order. Empty when the array is shared. */
+function addedTrophies(prev: GameState, next: GameState): string[] {
+  if (next.trophies === prev.trophies) return []
+  return next.trophies.filter((id) => !prev.trophies.includes(id))
+}
+
+/**
+ * Lands a core transition in the store. Trophies the change awarded join the toast queue, every
+ * one of them, so two trophies from one roll are shown one after another instead of the latest
+ * replacing the first. A transition that changed nothing writes nothing.
+ */
+function commit(prev: GameState, next: GameState): void {
+  if (next === prev) return
+  const added = addedTrophies(prev, next)
+  if (added.length === 0) {
+    store.setState({ game: next })
+    return
+  }
+  const { ui } = store.getState()
+  const fresh = added.filter((id) => !ui.trophyQueue.includes(id))
+  store.setState({ game: next, ui: { ...ui, trophyQueue: [...ui.trophyQueue, ...fresh] } })
+}
 
 /** Dispatch a player command. No state write when the command was a no-op. */
 export function send(command: Command): void {
   const { game } = store.getState()
-  const next = dispatch(game, command)
-  if (next !== game) store.setState({ game: next })
+  commit(game, dispatch(game, command))
 }
 
 /** Advance simulated time by one fixed tick. */
 export function tick(dtMs: number): void {
   const { game } = store.getState()
-  const next = advance(game, dtMs)
-  if (next !== game) store.setState({ game: next })
+  commit(game, advance(game, dtMs))
+}
+
+/**
+ * Drops the trophy the toast just showed. When that empties the queue the core's newTrophy is
+ * cleared too, so the tab badge goes with the last toast and a reload does not replay it.
+ */
+export function shiftTrophy(): void {
+  const { ui, game } = store.getState()
+  if (ui.trophyQueue.length === 0) {
+    if (game.newTrophy !== null) send({ type: 'clearNewTrophy' })
+    return
+  }
+  const trophyQueue = ui.trophyQueue.slice(1)
+  store.setState({ ui: { ...ui, trophyQueue } })
+  if (trophyQueue.length === 0 && game.newTrophy !== null) send({ type: 'clearNewTrophy' })
+}
+
+/** Put the open draft aside. The Charms tab offers to reopen it; a new offer reopens it on its own. */
+export function dismissDraft(): void {
+  setUi({ draftDismissed: true })
+}
+
+export function reopenDraft(): void {
+  setUi({ draftDismissed: false })
 }
 
 /**
@@ -169,7 +230,7 @@ export function creditOffline(elapsedMs: number, show: boolean = true): OfflineS
   const { game } = store.getState()
   const result = applyOffline(game, elapsedMs)
   if (result.state === game) return null
-  store.setState({ game: result.state })
+  commit(game, result.state)
   if (show) showOffline(result.summary)
   return result.summary
 }
@@ -200,9 +261,14 @@ export function dismissOffline(): void {
   setUi({ offline: null })
 }
 
-/** Swap in a loaded, imported or fresh game. */
+/**
+ * Swap in a loaded, imported or fresh game. The old game's pending toasts go with it; a trophy the
+ * incoming game had not finished showing (newTrophy set when it was saved) is queued on its own.
+ */
 export function replaceGame(game: GameState): void {
-  store.setState({ game })
+  const { ui } = store.getState()
+  const trophyQueue = game.newTrophy === null ? [] : [game.newTrophy]
+  store.setState({ game, ui: { ...ui, trophyQueue } })
 }
 
 export function setUi(patch: Partial<UiState>): void {

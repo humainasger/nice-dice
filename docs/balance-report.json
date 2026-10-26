@@ -70,6 +70,73 @@
         "base": 50
       }
     ],
+    "charms": [
+      "worn_felt common points mul 1.25",
+      "chalk_mark common points mul 1.25",
+      "silver_thimble rare points mul 1.5",
+      "golden_pip epic points mul 2",
+      "oak_cup common die:die_1 mul 2",
+      "tin_cup common die:die_2 mul 2",
+      "clay_cup common die:die_3 mul 2",
+      "copper_cup rare die:die_4 mul 4",
+      "ivory_cup rare die:die_5 mul 4",
+      "card_sharp rare combo mul 1.25",
+      "wound_spring rare autoroll mul 0.85",
+      "quick_hand epic autoroll mul 0.7",
+      "whittling_knife epic face_cap add 2",
+      "second_helping epic draft_growth add -0.05"
+    ],
+    "luckUpgrades": [
+      {
+        "id": "head_start",
+        "maxLevel": 5,
+        "baseCost": 2,
+        "costGrowth": 1.6,
+        "effect": "head_start 10"
+      },
+      {
+        "id": "quick_hands",
+        "maxLevel": 8,
+        "baseCost": 1,
+        "costGrowth": 1.5,
+        "effect": "quick_hands 0.92"
+      },
+      {
+        "id": "deep_pockets",
+        "maxLevel": 10,
+        "baseCost": 1,
+        "costGrowth": 1.4,
+        "effect": "deep_pockets 1.2"
+      },
+      {
+        "id": "keen_eye",
+        "maxLevel": 5,
+        "baseCost": 2,
+        "costGrowth": 1.6,
+        "effect": "keen_eye 0.15"
+      },
+      {
+        "id": "lucky_draw",
+        "maxLevel": 2,
+        "baseCost": 4,
+        "costGrowth": 2,
+        "effect": "lucky_draw 1"
+      },
+      {
+        "id": "memory",
+        "maxLevel": 3,
+        "baseCost": 5,
+        "costGrowth": 2,
+        "effect": "memory 1"
+      },
+      {
+        "id": "steady_hands",
+        "maxLevel": 1,
+        "baseCost": 3,
+        "costGrowth": 1,
+        "effect": "steady_hands 1"
+      }
+    ],
     "rules": {
       "autoRoll": {
         "baseIntervalMs": 5000,
@@ -89,7 +156,7 @@
       "ascension": {
         "level": 100,
         "multiplier": 100,
-        "costMultiplier": 300
+        "costMultiplier": 400
       },
       "combo": {
         "upgradeCost": 50,
@@ -103,7 +170,7 @@
         "unlockLevel": 10
       },
       "draft": {
-        "growth": 1.15,
+        "growth": 1.3,
         "offerSize": 3,
         "rarityWeights": {
           "common": 6,
@@ -113,7 +180,9 @@
       },
       "luck": {
         "threshold": 10000000000,
-        "perPoint": 0.1
+        "perPoint": 0.1,
+        "perDecade": 10,
+        "autoLevelEveryMs": 1000
       },
       "trophy": {
         "multiplier": 1.02
@@ -127,522 +196,44 @@
       "hours": 0.25,
       "horizonMs": 900000,
       "autoRollUnlockMs": 4000,
-      "firstAscensionMs": 869000,
-      "firstCharmMs": 870000,
+      "firstAscensionMs": 879000,
+      "firstCharmMs": 880000,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 340000,
       "dice": [
         {
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 34,
+          "level": 18,
           "ascensions": 1
         },
         {
           "id": "die_2",
           "affordableMs": 64000,
           "boughtMs": 64000,
-          "level": 35,
+          "level": 39,
           "ascensions": 0
         },
         {
           "id": "die_3",
           "affordableMs": 264000,
           "boughtMs": 264000,
-          "level": 15,
-          "ascensions": 0
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 469000,
-          "boughtMs": 469000,
-          "level": 1,
-          "ascensions": 0
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 539000,
-          "boughtMs": 539000,
-          "level": 1,
-          "ascensions": 0
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 89000
-        },
-        {
-          "threshold": 1000000,
-          "ms": null
-        },
-        {
-          "threshold": 1000000000,
-          "ms": null
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "2.349276293402e2",
-        "totalEarned": "9.59856948609332e5",
-        "rolls": 184,
-        "incomePerSecond": "7.123515457326219e4",
-        "luck": 0,
-        "prestiges": 0,
-        "charms": 1,
-        "comboLevels": [
-          7,
-          7,
-          7,
-          5,
-          6,
-          6,
-          4
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 1,
-      "hours": 1,
-      "horizonMs": 3600000,
-      "autoRollUnlockMs": 4000,
-      "firstAscensionMs": 869000,
-      "firstCharmMs": 870000,
-      "firstLuckMs": 2082000,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 54,
-          "ascensions": 2
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 64000,
-          "boughtMs": 64000,
-          "level": 33,
-          "ascensions": 1
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 264000,
-          "boughtMs": 264000,
-          "level": 11,
-          "ascensions": 1
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 469000,
-          "boughtMs": 469000,
-          "level": 11,
-          "ascensions": 0
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 539000,
-          "boughtMs": 539000,
-          "level": 1,
-          "ascensions": 0
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 89000
-        },
-        {
-          "threshold": 1000000,
-          "ms": 904000
-        },
-        {
-          "threshold": 1000000000,
-          "ms": 1434000
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "1.03181309317848e10",
-        "totalEarned": "5.27919608148847e10",
-        "rolls": 726,
-        "incomePerSecond": "4.07093546338334e7",
-        "luck": 2,
-        "prestiges": 1,
-        "charms": 2,
-        "comboLevels": [
-          16,
-          16,
-          16,
-          14,
-          15,
-          14,
-          12
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 1,
-      "hours": 8,
-      "horizonMs": 28800000,
-      "autoRollUnlockMs": 4000,
-      "firstAscensionMs": 869000,
-      "firstCharmMs": 870000,
-      "firstLuckMs": 2082000,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 48,
-          "ascensions": 44
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 64000,
-          "boughtMs": 64000,
-          "level": 20,
-          "ascensions": 43
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 264000,
-          "boughtMs": 264000,
-          "level": 1,
-          "ascensions": 42
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 469000,
-          "boughtMs": 469000,
-          "level": 1,
-          "ascensions": 41
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 539000,
-          "boughtMs": 539000,
-          "level": 1,
-          "ascensions": 40
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 89000
-        },
-        {
-          "threshold": 1000000,
-          "ms": 904000
-        },
-        {
-          "threshold": 1000000000,
-          "ms": 1434000
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "1.43237817123069e114",
-        "totalEarned": "3.84822526741035e124",
-        "rolls": 9219,
-        "incomePerSecond": "8.88636277608235e111",
-        "luck": 108086391230975680,
-        "prestiges": 21,
-        "charms": 24,
-        "comboLevels": [
-          293,
-          293,
-          293,
-          291,
-          292,
-          291,
-          289
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 2,
-      "hours": 0.25,
-      "horizonMs": 900000,
-      "autoRollUnlockMs": 2000,
-      "firstAscensionMs": 832000,
-      "firstCharmMs": 833000,
-      "firstLuckMs": null,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 48,
-          "ascensions": 1
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 82000,
-          "boughtMs": 82000,
-          "level": 48,
-          "ascensions": 0
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 187000,
-          "boughtMs": 187000,
-          "level": 25,
-          "ascensions": 0
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 417000,
-          "boughtMs": 417000,
-          "level": 7,
-          "ascensions": 0
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 502000,
-          "boughtMs": 502000,
-          "level": 1,
-          "ascensions": 0
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 102000
-        },
-        {
-          "threshold": 1000000,
-          "ms": 874000
-        },
-        {
-          "threshold": 1000000000,
-          "ms": null
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "8.6158930181549e2",
-        "totalEarned": "2.60565453055173e6",
-        "rolls": 188,
-        "incomePerSecond": "6.098521321153713e4",
-        "luck": 0,
-        "prestiges": 0,
-        "charms": 1,
-        "comboLevels": [
-          9,
-          9,
-          9,
-          8,
-          8,
-          8,
-          6
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 2,
-      "hours": 1,
-      "horizonMs": 3600000,
-      "autoRollUnlockMs": 2000,
-      "firstAscensionMs": 832000,
-      "firstCharmMs": 833000,
-      "firstLuckMs": 2582000,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 48,
-          "ascensions": 1
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 82000,
-          "boughtMs": 82000,
-          "level": 42,
-          "ascensions": 1
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 187000,
-          "boughtMs": 187000,
-          "level": 28,
-          "ascensions": 0
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 417000,
-          "boughtMs": 417000,
-          "level": 1,
-          "ascensions": 0
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 502000,
-          "boughtMs": 502000,
-          "level": 1,
-          "ascensions": 0
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 102000
-        },
-        {
-          "threshold": 1000000,
-          "ms": 874000
-        },
-        {
-          "threshold": 1000000000,
-          "ms": 1893000
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "5.49646275299467e7",
-        "totalEarned": "4.23545722231893e10",
-        "rolls": 872,
-        "incomePerSecond": "3.479603652494158e5",
-        "luck": 2,
-        "prestiges": 1,
-        "charms": 1,
-        "comboLevels": [
-          11,
-          11,
-          11,
-          9,
-          10,
-          10,
-          8
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 2,
-      "hours": 8,
-      "horizonMs": 28800000,
-      "autoRollUnlockMs": 2000,
-      "firstAscensionMs": 832000,
-      "firstCharmMs": 833000,
-      "firstLuckMs": 2582000,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 66,
-          "ascensions": 47
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 82000,
-          "boughtMs": 82000,
-          "level": 89,
-          "ascensions": 46
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 187000,
-          "boughtMs": 187000,
-          "level": 47,
-          "ascensions": 46
-        },
-        {
-          "id": "die_4",
-          "affordableMs": 417000,
-          "boughtMs": 417000,
-          "level": 94,
-          "ascensions": 45
-        },
-        {
-          "id": "die_5",
-          "affordableMs": 502000,
-          "boughtMs": 502000,
-          "level": 68,
-          "ascensions": 45
-        }
-      ],
-      "totalEarned": [
-        {
-          "threshold": 1000,
-          "ms": 102000
-        },
-        {
-          "threshold": 1000000,
-          "ms": 874000
-        },
-        {
-          "threshold": 1000000000,
-          "ms": 1893000
-        }
-      ],
-      "deadContent": [],
-      "end": {
-        "points": "4.54745843854686e121",
-        "totalEarned": "1.15102535577283e122",
-        "rolls": 10018,
-        "incomePerSecond": "1.147532339524275e119",
-        "luck": 90075630359673780,
-        "prestiges": 20,
-        "charms": 25,
-        "comboLevels": [
-          318,
-          318,
-          318,
-          317,
-          318,
-          318,
-          317
-        ]
-      }
-    },
-    {
-      "strategy": "active",
-      "seed": 3,
-      "hours": 0.25,
-      "horizonMs": 900000,
-      "autoRollUnlockMs": 3000,
-      "firstAscensionMs": 843000,
-      "firstCharmMs": 844000,
-      "firstLuckMs": null,
-      "dice": [
-        {
-          "id": "die_1",
-          "affordableMs": 0,
-          "boughtMs": 0,
-          "level": 51,
-          "ascensions": 1
-        },
-        {
-          "id": "die_2",
-          "affordableMs": 68000,
-          "boughtMs": 68000,
-          "level": 35,
-          "ascensions": 0
-        },
-        {
-          "id": "die_3",
-          "affordableMs": 283000,
-          "boughtMs": 283000,
           "level": 13,
           "ascensions": 0
         },
         {
           "id": "die_4",
-          "affordableMs": 508000,
-          "boughtMs": 508000,
+          "affordableMs": 469000,
+          "boughtMs": 469000,
           "level": 1,
           "ascensions": 0
         },
         {
           "id": "die_5",
-          "affordableMs": 563000,
-          "boughtMs": 563000,
+          "affordableMs": 539000,
+          "boughtMs": 539000,
           "level": 1,
           "ascensions": 0
         }
@@ -650,11 +241,11 @@
       "totalEarned": [
         {
           "threshold": 1000,
-          "ms": 108000
+          "ms": 89000
         },
         {
           "threshold": 1000000,
-          "ms": 878000
+          "ms": null
         },
         {
           "threshold": 1000000000,
@@ -663,148 +254,540 @@
       ],
       "deadContent": [],
       "end": {
-        "points": "1.48711792316893e6",
-        "totalEarned": "4.4529157379233e6",
-        "rolls": 183,
-        "incomePerSecond": "1.3576985749996546e5",
+        "points": "2.537229416311e3",
+        "totalEarned": "5.50698231598609e5",
+        "rolls": 184,
+        "incomePerSecond": "2.2045686160419953e4",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 1,
         "comboLevels": [
-          9,
-          9,
-          9,
-          8,
-          8,
-          8,
-          6
+          6,
+          5,
+          5,
+          5,
+          5,
+          4,
+          2
+        ],
+        "luckUpgradeLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ]
       }
     },
     {
       "strategy": "active",
-      "seed": 3,
+      "seed": 1,
       "hours": 1,
       "horizonMs": 3600000,
-      "autoRollUnlockMs": 3000,
-      "firstAscensionMs": 843000,
-      "firstCharmMs": 844000,
-      "firstLuckMs": 2205000,
+      "autoRollUnlockMs": 4000,
+      "firstAscensionMs": 879000,
+      "firstCharmMs": 880000,
+      "firstLuckMs": 2081000,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 500000,
       "dice": [
         {
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 46,
+          "level": 56,
           "ascensions": 2
         },
         {
           "id": "die_2",
-          "affordableMs": 68000,
-          "boughtMs": 68000,
-          "level": 39,
+          "affordableMs": 64000,
+          "boughtMs": 64000,
+          "level": 44,
           "ascensions": 2
         },
         {
           "id": "die_3",
-          "affordableMs": 283000,
-          "boughtMs": 283000,
-          "level": 23,
+          "affordableMs": 264000,
+          "boughtMs": 264000,
+          "level": 34,
           "ascensions": 1
         },
         {
           "id": "die_4",
-          "affordableMs": 508000,
-          "boughtMs": 508000,
-          "level": 1,
-          "ascensions": 1
+          "affordableMs": 469000,
+          "boughtMs": 469000,
+          "level": 29,
+          "ascensions": 0
         },
         {
           "id": "die_5",
-          "affordableMs": 563000,
-          "boughtMs": 563000,
-          "level": 11,
+          "affordableMs": 539000,
+          "boughtMs": 539000,
+          "level": 26,
           "ascensions": 0
         }
       ],
       "totalEarned": [
         {
           "threshold": 1000,
-          "ms": 108000
+          "ms": 89000
         },
         {
           "threshold": 1000000,
-          "ms": 878000
+          "ms": 914000
         },
         {
           "threshold": 1000000000,
-          "ms": 1596000
+          "ms": 1699000
         }
       ],
       "deadContent": [],
       "end": {
-        "points": "9.7164069988758e9",
-        "totalEarned": "6.10195798934504e10",
-        "rolls": 777,
-        "incomePerSecond": "1.0426164964081297e8",
-        "luck": 2,
+        "points": "1.0778872656277e7",
+        "totalEarned": "2.31548843860949e10",
+        "rolls": 741,
+        "incomePerSecond": "9.51214980944928e7",
+        "luck": 0,
+        "luckTotal": 2,
         "prestiges": 1,
         "charms": 3,
         "comboLevels": [
+          19,
+          18,
+          18,
           17,
           17,
           17,
-          16,
-          16,
-          16,
-          14
+          15
+        ],
+        "luckUpgradeLevels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 1,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 4000,
+      "firstAscensionMs": 879000,
+      "firstCharmMs": 880000,
+      "firstLuckMs": 2081000,
+      "secondLuckMs": 3626000,
+      "longestPurchaseGapMs": 648000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 80,
+          "ascensions": 12
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 64000,
+          "boughtMs": 64000,
+          "level": 51,
+          "ascensions": 12
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 264000,
+          "boughtMs": 264000,
+          "level": 99,
+          "ascensions": 11
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 469000,
+          "boughtMs": 469000,
+          "level": 69,
+          "ascensions": 11
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 539000,
+          "boughtMs": 539000,
+          "level": 52,
+          "ascensions": 11
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 89000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 914000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": 1699000
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "3.24600078870075e34",
+        "totalEarned": "3.95586221537944e37",
+        "rolls": 14825,
+        "incomePerSecond": "1.6496670384667358e34",
+        "luck": 3640,
+        "luckTotal": 3887,
+        "prestiges": 22,
+        "charms": 13,
+        "comboLevels": [
+          88,
+          88,
+          88,
+          88,
+          88,
+          88,
+          86
+        ],
+        "luckUpgradeLevels": [
+          5,
+          8,
+          10,
+          5,
+          2,
+          3,
+          1
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 0.25,
+      "horizonMs": 900000,
+      "autoRollUnlockMs": 2000,
+      "firstAscensionMs": 787000,
+      "firstCharmMs": 788000,
+      "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 300000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 57,
+          "ascensions": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 82000,
+          "level": 57,
+          "ascensions": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 187000,
+          "boughtMs": 187000,
+          "level": 33,
+          "ascensions": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 442000,
+          "boughtMs": 442000,
+          "level": 15,
+          "ascensions": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 482000,
+          "boughtMs": 482000,
+          "level": 5,
+          "ascensions": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 102000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 827000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": null
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "2.7628074784017e3",
+        "totalEarned": "7.23329008013259e6",
+        "rolls": 182,
+        "incomePerSecond": "1.1635394041308098e5",
+        "luck": 0,
+        "luckTotal": 0,
+        "prestiges": 0,
+        "charms": 1,
+        "comboLevels": [
+          11,
+          10,
+          10,
+          9,
+          10,
+          9,
+          8
+        ],
+        "luckUpgradeLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": 2000,
+      "firstAscensionMs": 787000,
+      "firstCharmMs": 788000,
+      "firstLuckMs": 2052000,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 618000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 70,
+          "ascensions": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 82000,
+          "level": 82,
+          "ascensions": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 187000,
+          "boughtMs": 187000,
+          "level": 60,
+          "ascensions": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 442000,
+          "boughtMs": 442000,
+          "level": 39,
+          "ascensions": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 482000,
+          "boughtMs": 482000,
+          "level": 30,
+          "ascensions": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 102000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 827000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": 1692000
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "9.69432048385682e7",
+        "totalEarned": "1.2817264736782e10",
+        "rolls": 722,
+        "incomePerSecond": "1.638622737716157e5",
+        "luck": 0,
+        "luckTotal": 2,
+        "prestiges": 1,
+        "charms": 1,
+        "comboLevels": [
+          12,
+          12,
+          12,
+          11,
+          12,
+          11,
+          10
+        ],
+        "luckUpgradeLevels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 2,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 2000,
+      "firstAscensionMs": 787000,
+      "firstCharmMs": 788000,
+      "firstLuckMs": 2052000,
+      "secondLuckMs": 4062000,
+      "longestPurchaseGapMs": 635000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 63,
+          "ascensions": 12
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 82000,
+          "boughtMs": 82000,
+          "level": 33,
+          "ascensions": 12
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 187000,
+          "boughtMs": 187000,
+          "level": 81,
+          "ascensions": 11
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 442000,
+          "boughtMs": 442000,
+          "level": 51,
+          "ascensions": 11
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 482000,
+          "boughtMs": 482000,
+          "level": 35,
+          "ascensions": 11
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 102000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 827000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": 1692000
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "7.7367574629089e33",
+        "totalEarned": "1.41484900373467e37",
+        "rolls": 14489,
+        "incomePerSecond": "9.406142738274346e33",
+        "luck": 3461,
+        "luckTotal": 3708,
+        "prestiges": 22,
+        "charms": 13,
+        "comboLevels": [
+          88,
+          88,
+          88,
+          88,
+          88,
+          88,
+          88
+        ],
+        "luckUpgradeLevels": [
+          5,
+          8,
+          10,
+          5,
+          2,
+          3,
+          1
         ]
       }
     },
     {
       "strategy": "active",
       "seed": 3,
-      "hours": 8,
-      "horizonMs": 28800000,
+      "hours": 0.25,
+      "horizonMs": 900000,
       "autoRollUnlockMs": 3000,
-      "firstAscensionMs": 843000,
-      "firstCharmMs": 844000,
-      "firstLuckMs": 2205000,
+      "firstAscensionMs": 898000,
+      "firstCharmMs": 899000,
+      "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 305000,
       "dice": [
         {
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 48,
-          "ascensions": 48
+          "level": 1,
+          "ascensions": 1
         },
         {
           "id": "die_2",
           "affordableMs": 68000,
           "boughtMs": 68000,
-          "level": 1,
-          "ascensions": 43
+          "level": 35,
+          "ascensions": 0
         },
         {
           "id": "die_3",
           "affordableMs": 283000,
           "boughtMs": 283000,
-          "level": 1,
-          "ascensions": 41
+          "level": 14,
+          "ascensions": 0
         },
         {
           "id": "die_4",
-          "affordableMs": 508000,
-          "boughtMs": 508000,
+          "affordableMs": 523000,
+          "boughtMs": 523000,
           "level": 1,
-          "ascensions": 40
+          "ascensions": 0
         },
         {
           "id": "die_5",
-          "affordableMs": 563000,
-          "boughtMs": 563000,
+          "affordableMs": 588000,
+          "boughtMs": 588000,
           "level": 1,
-          "ascensions": 39
+          "ascensions": 0
         }
       ],
       "totalEarned": [
@@ -814,30 +797,224 @@
         },
         {
           "threshold": 1000000,
-          "ms": 878000
+          "ms": null
         },
         {
           "threshold": 1000000000,
-          "ms": 1596000
+          "ms": null
         }
       ],
       "deadContent": [],
       "end": {
-        "points": "7.42038699436949e123",
-        "totalEarned": "1.11029693351353e134",
-        "rolls": 9056,
-        "incomePerSecond": "7.217638886833053e121",
-        "luck": 99079191824017280,
-        "prestiges": 21,
-        "charms": 24,
+        "points": "1.257373535282e3",
+        "totalEarned": "3.87068666813441e5",
+        "rolls": 183,
+        "incomePerSecond": "1.4169416617184518e3",
+        "luck": 0,
+        "luckTotal": 0,
+        "prestiges": 0,
+        "charms": 1,
         "comboLevels": [
-          320,
-          319,
-          319,
-          318,
-          318,
-          318,
-          316
+          6,
+          5,
+          5,
+          5,
+          4,
+          4,
+          2
+        ],
+        "luckUpgradeLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 3,
+      "hours": 1,
+      "horizonMs": 3600000,
+      "autoRollUnlockMs": 3000,
+      "firstAscensionMs": 898000,
+      "firstCharmMs": 899000,
+      "firstLuckMs": 2503000,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 415000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 73,
+          "ascensions": 1
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 68000,
+          "boughtMs": 68000,
+          "level": 95,
+          "ascensions": 0
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 283000,
+          "boughtMs": 283000,
+          "level": 70,
+          "ascensions": 0
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 523000,
+          "boughtMs": 523000,
+          "level": 48,
+          "ascensions": 0
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 588000,
+          "boughtMs": 588000,
+          "level": 41,
+          "ascensions": 0
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 108000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 958000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": 2128000
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "1.670469378456e4",
+        "totalEarned": "1.26659380118675e10",
+        "rolls": 723,
+        "incomePerSecond": "1.4724871413567047e5",
+        "luck": 0,
+        "luckTotal": 2,
+        "prestiges": 1,
+        "charms": 1,
+        "comboLevels": [
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          10
+        ],
+        "luckUpgradeLevels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "strategy": "active",
+      "seed": 3,
+      "hours": 8,
+      "horizonMs": 28800000,
+      "autoRollUnlockMs": 3000,
+      "firstAscensionMs": 898000,
+      "firstCharmMs": 899000,
+      "firstLuckMs": 2503000,
+      "secondLuckMs": 4413000,
+      "longestPurchaseGapMs": 515000,
+      "dice": [
+        {
+          "id": "die_1",
+          "affordableMs": 0,
+          "boughtMs": 0,
+          "level": 55,
+          "ascensions": 11
+        },
+        {
+          "id": "die_2",
+          "affordableMs": 68000,
+          "boughtMs": 68000,
+          "level": 63,
+          "ascensions": 10
+        },
+        {
+          "id": "die_3",
+          "affordableMs": 283000,
+          "boughtMs": 283000,
+          "level": 34,
+          "ascensions": 10
+        },
+        {
+          "id": "die_4",
+          "affordableMs": 523000,
+          "boughtMs": 523000,
+          "level": 82,
+          "ascensions": 9
+        },
+        {
+          "id": "die_5",
+          "affordableMs": 588000,
+          "boughtMs": 588000,
+          "level": 65,
+          "ascensions": 9
+        }
+      ],
+      "totalEarned": [
+        {
+          "threshold": 1000,
+          "ms": 108000
+        },
+        {
+          "threshold": 1000000,
+          "ms": 958000
+        },
+        {
+          "threshold": 1000000000,
+          "ms": 2128000
+        }
+      ],
+      "deadContent": [],
+      "end": {
+        "points": "7.15155937226521e33",
+        "totalEarned": "2.09770250177738e37",
+        "rolls": 14549,
+        "incomePerSecond": "4.653096922978713e31",
+        "luck": 3692,
+        "luckTotal": 3939,
+        "prestiges": 22,
+        "charms": 13,
+        "comboLevels": [
+          79,
+          78,
+          78,
+          77,
+          77,
+          77,
+          75
+        ],
+        "luckUpgradeLevels": [
+          5,
+          8,
+          10,
+          5,
+          2,
+          3,
+          1
         ]
       }
     },
@@ -850,6 +1027,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 900000,
       "dice": [
         {
           "id": "die_1",
@@ -913,9 +1092,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -935,6 +1124,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 3600000,
       "dice": [
         {
           "id": "die_1",
@@ -998,9 +1189,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1020,6 +1221,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 28800000,
       "dice": [
         {
           "id": "die_1",
@@ -1083,9 +1286,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1105,6 +1318,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 900000,
       "dice": [
         {
           "id": "die_1",
@@ -1168,9 +1383,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1190,6 +1415,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 3600000,
       "dice": [
         {
           "id": "die_1",
@@ -1253,9 +1480,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1275,6 +1512,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 28800000,
       "dice": [
         {
           "id": "die_1",
@@ -1338,9 +1577,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1360,6 +1609,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 900000,
       "dice": [
         {
           "id": "die_1",
@@ -1423,9 +1674,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1445,6 +1706,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 3600000,
       "dice": [
         {
           "id": "die_1",
@@ -1508,9 +1771,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,
@@ -1530,6 +1803,8 @@
       "firstAscensionMs": null,
       "firstCharmMs": null,
       "firstLuckMs": null,
+      "secondLuckMs": null,
+      "longestPurchaseGapMs": 28800000,
       "dice": [
         {
           "id": "die_1",
@@ -1593,9 +1868,19 @@
         "rolls": 0,
         "incomePerSecond": "0e0",
         "luck": 0,
+        "luckTotal": 0,
         "prestiges": 0,
         "charms": 0,
         "comboLevels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "luckUpgradeLevels": [
           0,
           0,
           0,

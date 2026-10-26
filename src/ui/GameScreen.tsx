@@ -6,7 +6,8 @@
 // holds the page until boot() has loaded the save, so the first paint is the real game.
 import { useState } from 'react'
 import { SettingsIcon } from 'lucide-react'
-import { selectBooted, selectDraftOpen, selectHasNewTrophy, selectLuck } from '@/app/selectors'
+import { selectBooted, selectDraftOpen, selectHasNewTrophy } from '@/app/selectors'
+import { selectLuckShopReady, selectLuckTotal } from '@/app/selectors.luck'
 import { useGameStore } from '@/app/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -70,12 +71,14 @@ export function GameScreen() {
   const booted = useGameStore(selectBooted)
   const draftOpen = useGameStore(selectDraftOpen)
   const newTrophy = useGameStore(selectHasNewTrophy)
-  const luck = useGameStore(selectLuck)
+  const luckTotal = useGameStore(selectLuckTotal)
+  const luckShopReady = useGameStore(selectLuckShopReady)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tab, setTab] = useState<TabId>(readTab)
   /** What the desktop side column shows: the table is always on the left, so it falls back to combos. */
   const side: SideTabId = tab === 'table' ? 'combos' : tab
-  const badges = { charms: draftOpen, trophies: newTrophy }
+  /** The attention dots: a draft to decide, a trophy to see, luck that can buy an upgrade. */
+  const badges = { charms: draftOpen, trophies: newTrophy, luck: luckShopReady }
 
   const choose = (next: TabId): void => {
     setTab(next)
@@ -88,9 +91,13 @@ export function GameScreen() {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold tracking-tight">Nice Dice</h1>
-            {luck > 0 && (
-              <Badge variant="secondary" className="bg-cool/20 text-cool-text tabular" title="Luck multiplies every roll and survives a prestige">
-                Luck {luck}
+            {luckTotal > 0 && (
+              <Badge
+                variant="secondary"
+                className="bg-cool/20 text-cool-text tabular"
+                title="Lifetime luck: it multiplies every roll and survives every reset. Spend luck in the Luck tab."
+              >
+                Luck {luckTotal}
               </Badge>
             )}
           </div>

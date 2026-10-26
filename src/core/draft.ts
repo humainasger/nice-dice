@@ -2,7 +2,7 @@
 // (weighted by rarity, distinct, with a preference for charms not yet held) and when a draft opens.
 import { charmDieTarget, content, type CharmDef, type Id } from '@/content'
 import { rules } from './defs'
-import { draftRequirement, findDie } from './formulas'
+import { draftOfferSize, draftRequirement, findDie } from './formulas'
 import { restoreRng } from './rng'
 import type { GameState } from './state'
 
@@ -15,12 +15,12 @@ export function eligibleCharms(state: GameState): CharmDef[] {
 }
 
 /**
- * Draws rules.draft.offerSize distinct charms by rarity weight. Charms already held are left out
- * while enough others remain, so a run sees variety first and never runs dry. Returns the offer
- * and the advanced RNG state.
+ * Draws draftOfferSize(state) distinct charms (rules.draft.offerSize plus the lucky_draw upgrade)
+ * by rarity weight. Charms already held are left out while enough others remain, so a run sees
+ * variety first and never runs dry. Returns the offer and the advanced RNG state.
  */
 export function drawOffer(state: GameState): { offer: Id[]; rng: readonly number[] } {
-  const size = rules.draft.offerSize
+  const size = draftOfferSize(state)
   const eligible = eligibleCharms(state)
   const unheld = eligible.filter((def) => !state.charms.includes(def.id))
   const pool = unheld.length >= size ? unheld : eligible

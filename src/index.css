@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/fraunces";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -337,4 +338,64 @@
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
+}
+
+/* Title screen (src/ui/title/). Fraunces is the display face: --font-display is the token, the
+   font-display utility applies it. The keyframes are the workbench scene's motion: the die's slow
+   float with its shadow breathing under it, the lamp glow, the dust motes drifting through the
+   light, and the screen's exit fade. The reduce-motion rules above collapse every animation to one
+   frame; the motes are hidden outright, since a frozen speck reads as dirt on the screen. */
+:root {
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+}
+@utility font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+@keyframes title-die-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-16px) rotate(-2.5deg); }
+}
+.title-die {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: title-die-float 6s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes title-shadow-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50%      { transform: scale(0.9); opacity: 0.42; }
+}
+.title-shadow {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: title-shadow-breathe 6s ease-in-out infinite;
+}
+@keyframes title-glow-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.9; }
+}
+.title-glow { animation: title-glow-breathe 7s ease-in-out infinite; }
+/* One mote. WorkbenchScene sets --mote-dur, --mote-delay, --mote-dx, --mote-dy and --mote-alpha per circle. */
+@keyframes title-mote {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  20%  { opacity: var(--mote-alpha, 0.7); }
+  80%  { opacity: var(--mote-alpha, 0.7); }
+  100% { transform: translate(var(--mote-dx, -40px), var(--mote-dy, -90px)); opacity: 0; }
+}
+.title-mote {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: title-mote var(--mote-dur, 12s) linear var(--mote-delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-mote { display: none; }
+}
+.reduce-motion .title-mote { display: none; }
+/* The exit: TitleScreen adds this on Continue and unmounts once the fade is over. */
+.title-leave {
+  opacity: 0;
+  transition: opacity 220ms ease-out;
 }

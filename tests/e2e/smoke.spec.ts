@@ -5,7 +5,7 @@
 // and Web Locks), so state starts empty; the first test also wipes the origin's save explicitly,
 // as a belt for the braces.
 import { expect, test } from '@playwright/test'
-import { MIN_TAP_PX, PHONE, POINTS_PATTERN, clearSave, openGame, rollTimes } from './helpers'
+import { MIN_TAP_PX, PHONE, POINTS_PATTERN, clearSave, continueFromTitle, openGame, rollTimes } from './helpers'
 
 test('a fresh game reads 0 and rolling earns points', async ({ page }) => {
   await clearSave(page)
@@ -29,6 +29,7 @@ test('a save survives a reload', async ({ page }) => {
   // pagehide saves synchronously to the mirror and IndexedDB keeps the autosaved copy; a quick
   // reload is under rules.offline.minAwayMs, so nothing is credited and the number comes back as is.
   await page.reload()
+  await continueFromTitle(page)
 
   await expect(page.getByTestId('roll-button')).toBeVisible()
   await expect(page.getByTestId('points')).toHaveText(before)

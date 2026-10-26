@@ -1,5 +1,5 @@
-// The Charms tab: locked until the first ascension (after a luck reset: until the first ascension
-// of this run), then the draft progress bar ("2 / 3 ascensions"), a note while a draft is open or
+// The Charms tab: locked until the first refinement (ascension in code; after a luck reset: until
+// the first refinement of this run), then the draft progress bar ("2 / 3 refinements"), a note while a draft is open or
 // waiting (put aside with "Decide later", with an "Open draft" button), and the charms held this
 // run as cards. A charm held twice is one card with an x2 badge.
 import { SparklesIcon } from 'lucide-react'
@@ -53,8 +53,8 @@ export function CharmsPanel() {
           headline={lockedHeadline}
           detail={
             prestiges > 0
-              ? 'The luck reset took the charms with it. A die at level 100 ascends: back to level 1, output x100, and one step toward a fresh draft of three charms.'
-              : 'A die at level 100 ascends: back to level 1, output x100, and one step toward a draft of three charms.'
+              ? 'The luck reset took the charms with it. Refine a die at level 100: back to level 1, output x100, and one step toward a fresh draft of three charms.'
+              : 'Refine a die at level 100: back to level 1, output x100, and one step toward a draft of three charms.'
           }
         />
       </div>
@@ -70,14 +70,14 @@ export function CharmsPanel() {
         <div className="flex items-baseline justify-between gap-3">
           <PanelTitle>Next draft</PanelTitle>
           <span data-testid="draft-progress" className="text-sm text-muted-foreground tabular">
-            {progress} / {requirement} {requirement === 1 ? 'ascension' : 'ascensions'}
+            {progress} / {requirement} {requirement === 1 ? 'refinement' : 'refinements'}
           </span>
         </div>
         <Bar value={percent} tone="cool" label="Draft progress" />
         {draftWaiting ? (
           <div data-testid="draft-waiting" className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-sm text-cool-text">
-              <SparklesIcon className="size-4" aria-hidden="true" />A draft is waiting. Ascensions keep filling the bar meanwhile.
+              <SparklesIcon className="size-4" aria-hidden="true" />A draft is waiting. Refinements keep filling the bar meanwhile.
             </p>
             <Button data-testid="draft-open" onClick={reopenDraft} className="min-h-11 touch-manipulation">
               Open draft
@@ -89,7 +89,7 @@ export function CharmsPanel() {
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Every ascension fills the bar. {taken === 0 ? 'Your first draft offers three charms; take one.' : 'Each pick moves the next draft a little further away.'} Charms stay until you press your luck.
+            Every refinement fills the bar. {taken === 0 ? 'Your first draft offers three charms; take one.' : 'Each pick moves the next draft a little further away.'} Charms stay until you press your luck.
           </p>
         )}
       </PanelCard>

@@ -154,7 +154,7 @@ Analytics: none in v1. If needed later, Umami Cloud Hobby (cookieless, 100K even
 
 ## 8. Open questions for Asger
 
-- Q1 Title decided 2026-10-25: Nice Dice, repo nice-dice. The fantasy behind the dice is still open and is needed before M1 names any content. Not casino (D5).
+- Q1 Decided. Title Nice Dice (2026-10-25); fantasy the dicewright's workshop (2026-10-26, D18): Pine, Oak, Bone, Brass and Obsidian dice, refining, marks.
 - Q2 Phone or laptop first. Idle Dice is landscape. Recommendation: responsive with a portrait phone layout, since that is where you will playtest.
 - Q3 Monetisation intent. Hobby and free changes nothing. Portal ads later means Cloudflare hosting, PEGI 12, a privacy policy and the platform adapter from M0, all already in the plan.
 - Q4 The v1 differentiator. Recommendation: face editing. Alternatives in the parking lot.

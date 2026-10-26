@@ -32,6 +32,36 @@ describe('content tables', () => {
     }
   })
 
+  it('dice carry the m5-theme.md material names, softest first', () => {
+    expect(dice.map((d) => d.name)).toEqual(['Pine Die', 'Oak Die', 'Bone Die', 'Brass Die', 'Obsidian Die'])
+    expect(dice.every((d) => typeof d.notes === 'string' && d.notes.length > 0)).toBe(true)
+  })
+
+  it('trophies read as the dicewright marks of m5-theme.md, with no casino or tavern copy anywhere in the tables', () => {
+    expect(trophies.map((t) => t.name)).toEqual([
+      'First Throw',
+      'Warm Hands',
+      'Journeyman',
+      'Groove in the Bench',
+      'Oak Shavings',
+      'Bone Dust',
+      'Brass Filings',
+      'The Whole Set',
+      'First Refinement',
+      'Hung by the Lamp',
+      'Pressed Your Luck',
+      'Five Alike',
+      'Earned Your Keep',
+      'Set for Life',
+    ])
+    const copy = [
+      ...trophies.flatMap((t) => [t.name, t.description]),
+      ...charms.flatMap((c) => [c.name, c.flavour]),
+      ...luckUpgrades.flatMap((u) => [u.name, u.description]),
+    ].join(' ')
+    expect(copy).not.toMatch(/casino|tavern|gambl|\btable\b|ascen/i)
+  })
+
   it('combos hold every hand once, weakest to strongest, at the m3-game.md bases', () => {
     expect(combos.map((c) => c.id)).toEqual([...COMBO_IDS])
     expect(combos.map((c) => c.base)).toEqual([2, 3, 4, 6, 8, 12, 50])
@@ -89,15 +119,18 @@ describe('content tables', () => {
     expect(byId['steady_hands']).toMatchObject({ maxLevel: 1, baseCost: 3, effect: { kind: 'steady_hands', value: 1 } })
   })
 
-  it('rules carry the M3 and M4 numbers from the briefs and the balance log', () => {
-    const { ascension, combo, face, draft, luck, trophy } = content.rules
+  it('rules carry the M3, M4 and M5 numbers from the briefs and the balance log', () => {
+    const { ascension, combo, face, draft, luck, mastery, favour, trophy } = content.rules
     // luck.threshold is the 2026-10-25 retune; draft.growth (1.15 to 1.3) and ascension.costMultiplier
-    // (300 to 400) are the 2026-10-26 M4 retune (docs/BALANCE_LOG.md); the rest is the briefs as written.
+    // (300 to 400) are the 2026-10-26 M4 retune (docs/BALANCE_LOG.md); mastery and favour are the
+    // m5-theme.md sections 1 and 2 luck sinks as written; the rest is the briefs as written.
     expect(ascension).toEqual({ level: 100, multiplier: 100, costMultiplier: 400 })
     expect(combo).toEqual({ upgradeCost: 50, costGrowth: 2.35, step: 0.1 })
     expect(face).toEqual({ cap: 12, costFactor: 5, costGrowth: 1.6, unlockLevel: 10 })
     expect(draft).toEqual({ growth: 1.3, offerSize: 3, rarityWeights: { common: 6, rare: 3, epic: 1 } })
     expect(luck).toEqual({ threshold: 1e10, perPoint: 0.1, perDecade: 10, autoLevelEveryMs: 1000 })
+    expect(mastery).toEqual({ baseCost: 2, costGrowth: 1.35, step: 0.1 })
+    expect(favour).toEqual({ costGrowth: 1.5, step: 0.05 })
     expect(trophy).toEqual({ multiplier: 1.02 })
   })
 })

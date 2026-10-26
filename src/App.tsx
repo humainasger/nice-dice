@@ -1,25 +1,31 @@
-// Root component: boots the app layer once, unlocks audio on the first pointer or key gesture
-// (browsers refuse sound before one), then renders the locked screen (another tab holds the game)
-// or the game screen.
+// Root component: boots the app layer once, then renders the locked screen (another tab holds the
+// game), the title screen until the player taps Continue (audio is unlocked on that tap, the first
+// user gesture), or the game screen. boot() runs under the title, so the save is loaded by the time
+// the tap lands; the recovery dialog renders above the title when boot found an unreadable save, so
+// that flow is unchanged.
 import { useEffect } from 'react'
-import { unlockAudio } from '@/app/audio'
 import { boot } from '@/app/boot'
-import { selectLocked } from '@/app/selectors'
+import { selectLocked, selectTitleDismissed } from '@/app/selectors'
 import { useGameStore } from '@/app/store'
 import { GameScreen } from '@/ui/GameScreen'
 import { LockedScreen } from '@/ui/LockedScreen'
+import { RecoveryDialog } from '@/ui/RecoveryDialog'
+import { TitleScreen } from '@/ui/title/TitleScreen'
 
 export default function App() {
   const locked = useGameStore(selectLocked)
+  const titleDismissed = useGameStore(selectTitleDismissed)
   useEffect(() => {
     void boot()
-    const unlock = (): void => unlockAudio()
-    window.addEventListener('pointerdown', unlock, { once: true, passive: true })
-    window.addEventListener('keydown', unlock, { once: true })
-    return () => {
-      window.removeEventListener('pointerdown', unlock)
-      window.removeEventListener('keydown', unlock)
-    }
   }, [])
-  return locked ? <LockedScreen /> : <GameScreen />
+  if (locked) return <LockedScreen />
+  if (!titleDismissed) {
+    return (
+      <>
+        <TitleScreen />
+        <RecoveryDialog />
+      </>
+    )
+  }
+  return <GameScreen />
 }

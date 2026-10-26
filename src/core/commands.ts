@@ -1,6 +1,7 @@
 // Commands and dispatch: the only way a player action changes state. Pure; an invalid command or
 // a no-op returns the very same state object, so callers can tell "nothing happened" by identity.
-// Every command that changed something is followed by the trophy check.
+// Every command that changed something is followed by the trophy check. Luck is spent by
+// buyLuckUpgrade (the capped M4 shop) and by the unbounded M5 sinks masterDie and buyFavour.
 import type { ComboId, Id, LuckUpgradeId } from '@/content'
 import { ascendDie, autoAscendAll, replaceDie } from './ascend'
 import { dieDef, isComboId, isLuckUpgradeId, luckUpgradeDef, rules } from './defs'
@@ -15,6 +16,7 @@ import {
   draftRequirement,
   faceCap,
   faceUpgradeCost,
+  favourCost,
   findDie,
   headStartLevel,
   levelCap,
@@ -24,6 +26,8 @@ import {
   luckOnReset,
   luckUpgradeCost,
   luckUpgradeLevel,
+  masteryCost,
+  masteryLevel,
   unlockSatisfied,
 } from './formulas'
 import { N } from './num'
@@ -69,6 +73,13 @@ export type Command =
   | { readonly type: 'buyLuckUpgrade'; readonly id: LuckUpgradeId }
   /** Switch auto-level on or off; a no-op unless the steady_hands upgrade is owned. */
   | { readonly type: 'setAutoLevel'; readonly enabled: boolean }
+  /**
+   * Spend luck on the next mastery level of a content die, owned or not (mastery belongs to the
+   * material and the die comes back next run); only when the luck covers masteryCost. Unbounded.
+   */
+  | { readonly type: 'masterDie'; readonly id: Id }
+  /** Spend luck on the next level of Fortune's Favour; only when the luck covers favourCost. Unbounded. */
+  | { readonly type: 'buyFavour' }
 
 export function dispatch(state: GameState, command: Command): GameState {
   const next = apply(state, command)
@@ -107,6 +118,10 @@ function apply(state: GameState, command: Command): GameState {
       return buyLuckUpgrade(state, command.id)
     case 'setAutoLevel':
       return setAutoLevel(state, command.enabled)
+    case 'masterDie':
+      return masterDie(state, command.id)
+    case 'buyFavour':
+      return buyFavour(state)
     default:
       // Unknown type at runtime (a command built from untyped data): nothing happens.
       return state
@@ -211,10 +226,10 @@ function rerollDraft(state: GameState): GameState {
 }
 
 /**
- * Resets the run for luck. Keeps luck (spendable and lifetime), the luck upgrades, trophies, stats,
- * auto-ascend, auto-level and the auto-roll unlock. The memory upgrade keeps up to its level in
- * charms, highest rarity first; head_start sets die_1's starting level; the auto-roll interval is
- * rebuilt from what survives.
+ * Resets the run for luck. Keeps luck (spendable and lifetime), the luck upgrades, mastery and
+ * Fortune's Favour, trophies, stats, auto-ascend, auto-level and the auto-roll unlock. The memory
+ * upgrade keeps up to its level in charms, highest rarity first; head_start sets die_1's starting
+ * level; the auto-roll interval is rebuilt from what survives.
  */
 function prestige(state: GameState): GameState {
   const gain = luckOnReset(state)
@@ -261,4 +276,24 @@ function buyLuckUpgrade(state: GameState, id: LuckUpgradeId): GameState {
 function setAutoLevel(state: GameState, enabled: boolean): GameState {
   if (typeof enabled !== 'boolean' || state.autoLevel === enabled || !autoLevelAvailable(state)) return state
   return { ...state, autoLevel: enabled }
+}
+
+/**
+ * Spends luck on the next mastery level of a die. Any die the state knows qualifies, owned or not,
+ * since mastery is permanent and the die comes back next run. A cost past the double range
+ * (Infinity) is never covered, so the level saturates on its own.
+ */
+function masterDie(state: GameState, id: Id): GameState {
+  if (typeof id !== 'string' || findDie(state, id) === undefined) return state
+  const level = masteryLevel(state, id)
+  const cost = masteryCost(level)
+  if (!(state.luck >= cost)) return state
+  return { ...state, luck: state.luck - cost, mastery: { ...state.mastery, [id]: level + 1 } }
+}
+
+/** Spends luck on the next Fortune's Favour level. Same saturation as masterDie. */
+function buyFavour(state: GameState): GameState {
+  const cost = favourCost(state.favour)
+  if (!(state.luck >= cost)) return state
+  return { ...state, luck: state.luck - cost, favour: state.favour + 1 }
 }

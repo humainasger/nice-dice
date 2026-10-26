@@ -75,7 +75,7 @@ export function DraftDialog() {
         <DialogHeader>
           <DialogTitle className="text-lg">Pick a charm</DialogTitle>
           <DialogDescription>
-            {taken === 0 ? 'Your ascensions earned a draft.' : `Draft ${taken + 1}.`} One of these three joins your table until you press your luck.
+            {taken === 0 ? 'Your refinements earned a draft.' : `Draft ${taken + 1}.`} One of these joins your bench until you press your luck.
           </DialogDescription>
         </DialogHeader>
 

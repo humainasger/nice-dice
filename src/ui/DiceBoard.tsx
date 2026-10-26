@@ -1,6 +1,6 @@
-// The dice board: one card per content die, in content order, under a small header that carries
-// the auto-ascend switch once ascension is in play and the auto-level switch once the Steady Hands
-// luck upgrade is owned. The board is the stage for the roll effects:
+// The dice board (the bench): one card per content die, in content order, under a small header
+// that carries the auto-refine switch (auto-ascend in code) once refining is in play and the
+// auto-level switch once the Steady Hands luck upgrade is owned. The board is the stage for the roll effects:
 // a floating "+N" and the combo sound on every new roll, the combo callout over the first row of
 // dice with the gain under it, and a gold burst plus a screen shake on four or five of a kind. One
 // column on phones, two from 640 px, three from 1024 px. The effects anchor to the top of the
@@ -54,13 +54,13 @@ export function DiceBoard() {
     <section aria-labelledby="dice-heading" className="flex flex-col gap-2">
       <header className="flex min-h-8 items-center justify-between gap-3 px-1">
         <h2 id="dice-heading" className="text-sm font-medium text-muted-foreground">
-          Dice
+          On the bench
         </h2>
         <div className="flex flex-wrap items-center justify-end gap-x-4">
           {autoLevelAvailable && (
             <label
               htmlFor="auto-level"
-              title="Steady Hands: every second buys the cheapest die level you can afford, and the next die when you can"
+              title="Steady Hands: every second buys the cheapest die level you can afford, and carves the next die when you can"
               className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground select-none touch-manipulation"
             >
               Auto-level
@@ -78,10 +78,10 @@ export function DiceBoard() {
               htmlFor="auto-ascend"
               className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground select-none touch-manipulation"
             >
-              Auto-ascend at level {content.rules.ascension.level}
+              Auto-refine at level {content.rules.ascension.level}
               <Switch
                 id="auto-ascend"
-                aria-label="Auto-ascend"
+                aria-label="Auto-refine"
                 data-testid="auto-ascend-switch"
                 checked={autoAscend}
                 onCheckedChange={(checked) => send({ type: 'setAutoAscend', enabled: checked })}

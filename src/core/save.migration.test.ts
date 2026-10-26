@@ -1,18 +1,20 @@
 // Fixture saves from every historical version load and survive a serialize/parse round trip, the
 // migration map covers every version below SAVE_VERSION, the v1 to v2 migration fills the M3
-// fields the way the brief says and the v2 to v3 migration the M4 luck fields. The last test is
-// the generator: run WRITE_SAVE_FIXTURE=1 pnpm exec vitest run src/core/save.migration.test.ts to
-// (re)write tests/fixtures/saves/v<SAVE_VERSION>.json from the scripted game below, so a version
-// bump always leaves a fixture for the version it replaces.
+// fields the way the brief says, the v2 to v3 migration the M4 luck fields and the v3 to v4
+// migration the M5 luck sinks. The last test is the generator: run
+// WRITE_SAVE_FIXTURE=1 pnpm exec vitest run src/core/save.migration.test.ts to (re)write
+// tests/fixtures/saves/v<SAVE_VERSION>.json from the scripted game below, so a version bump always
+// leaves a fixture for the version it replaces.
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
 import { advance } from './advance'
 import { dispatch } from './commands'
-import { autoRollInterval, luckOnReset } from './formulas'
+import { autoRollInterval, favourCost, luckEffects, luckOnReset, masteryCost } from './formulas'
 import { N } from './num'
 import { createInitialState, migrations, parseSave, SAVE_VERSION, serializeState } from './save'
+import { multiplierBreakdown } from './selectors'
 import type { GameState } from './state'
 
 const fixtures = import.meta.glob('/tests/fixtures/saves/v*.json', {
@@ -39,8 +41,9 @@ const SCRIPTED_LUCK = Math.floor(content.rules.luck.perDecade * Math.log10(4)) +
 /**
  * createInitialState(1), a dozen manual rolls, a max level-up (unlocks auto-roll), a minute of ticks,
  * a toggle, a roll, then the M3 systems: a run worth four thresholds is prestiged, the M4 luck shop
- * buys Quick Hands and Steady Hands (auto-level on), the next run buys three dice, levels the first
- * to the cap (auto-ascend opens the draft), picks a charm, rerolls the next offer, edits faces,
+ * buys Quick Hands and Steady Hands (auto-level on), the M5 sinks take the rest of the luck (one
+ * mastery level on die_1, one Fortune's Favour), the next run buys three dice, levels the first to
+ * the cap (auto-ascend opens the draft), picks a charm, rerolls the next offer, edits faces,
  * upgrades two hands, rolls a few times, ends on a partial interval with auto-level having had its
  * say, and clears the toast.
  */
@@ -56,6 +59,8 @@ function scriptedGame(): GameState {
   state = dispatch(state, { type: 'prestige' })
   state = dispatch(state, { type: 'buyLuckUpgrade', id: 'quick_hands' })
   state = dispatch(state, { type: 'buyLuckUpgrade', id: 'steady_hands' })
+  state = dispatch(state, { type: 'masterDie', id: 'die_1' })
+  state = dispatch(state, { type: 'buyFavour' })
   state = earn(state, 5e6)
   state = dispatch(state, { type: 'buyDie', id: 'die_2' })
   state = dispatch(state, { type: 'buyDie', id: 'die_3' })
@@ -113,14 +118,14 @@ describe('migrations', () => {
     expect(covered).toEqual(Array.from({ length: SAVE_VERSION - 1 }, (_, i) => i + 1))
   })
 
-  it('v1 to v3 adds faces, ascensions, face upgrades, the run total and the hand, with the other fields (luck included) defaulted', () => {
+  it('v1 to v4 adds faces, ascensions, face upgrades, the run total and the hand, with the other fields (luck and the sinks included) defaulted', () => {
     const text = fixtures['/tests/fixtures/saves/v1.json']
     if (text === undefined) throw new Error('setup: no v1 fixture')
     const raw = JSON.parse(text) as { totalEarned: string; dice: { id: string; level: number }[]; lastRoll: { faces: number[] } }
     const parsed = parseSave(text)
     if (!parsed.ok) throw new Error(`${parsed.reason}: ${parsed.detail}`)
     const { state } = parsed
-    expect(state.version).toBe(3)
+    expect(state.version).toBe(4)
     expect(N.eq(state.totalEarnedRun, N.parse(raw.totalEarned))).toBe(true)
     expect(state.dice.map((die) => die.level)).toEqual(raw.dice.map((die) => die.level))
     for (const die of state.dice) {
@@ -137,6 +142,8 @@ describe('migrations', () => {
     expect(state.luck).toBe(0)
     expect(state.luckTotal).toBe(0)
     expect(state.luckUpgrades).toEqual({})
+    expect(state.mastery).toEqual({})
+    expect(state.favour).toBe(0)
     expect(state.prestiges).toBe(0)
     expect(state.trophies).toEqual([])
     expect(state.newTrophy).toBeNull()
@@ -146,9 +153,12 @@ describe('migrations', () => {
     // The first command after loading awards the trophies the old save had already earned.
     expect(dispatch(state, { type: 'clearNewTrophy' })).toBe(state)
     expect(dispatch(state, { type: 'roll' }).trophies).toContain('first_roll')
+    // With no luck, neither sink can be bought.
+    expect(dispatch(state, { type: 'masterDie', id: 'die_1' })).toBe(state)
+    expect(dispatch(state, { type: 'buyFavour' })).toBe(state)
   })
 
-  it('v2 to v3 makes the luck held the lifetime luck, owns no upgrade and leaves auto-level off', () => {
+  it('v2 to v4 makes the luck held the lifetime luck, owns no upgrade, no mastery and no favour, and leaves auto-level off', () => {
     const text = fixtures['/tests/fixtures/saves/v2.json']
     if (text === undefined) throw new Error('setup: no v2 fixture')
     const raw = JSON.parse(text) as Record<string, unknown> & { luck: number; charms: string[]; trophies: string[] }
@@ -156,10 +166,12 @@ describe('migrations', () => {
     const parsed = parseSave(text)
     if (!parsed.ok) throw new Error(`${parsed.reason}: ${parsed.detail}`)
     const { state } = parsed
-    expect(state.version).toBe(3)
+    expect(state.version).toBe(4)
     expect(state.luck).toBe(raw.luck)
     expect(state.luckTotal).toBe(raw.luck)
     expect(state.luckUpgrades).toEqual({})
+    expect(state.mastery).toEqual({})
+    expect(state.favour).toBe(0)
     expect(state.autoLevel).toBe(false)
     expect(state.charms).toEqual(raw.charms)
     expect(state.trophies).toEqual(raw.trophies)
@@ -179,6 +191,60 @@ describe('migrations', () => {
     const bought = dispatch(state, { type: 'buyLuckUpgrade', id: 'quick_hands' })
     expect(bought.luck).toBe(raw.luck - 1)
     expect(bought.luckTotal).toBe(raw.luck)
+  })
+
+  it('v3 to v4 adds an empty mastery and favour 0, keeps every multiplier, and the loaded luck can go into the sinks straight away', () => {
+    const text = fixtures['/tests/fixtures/saves/v3.json']
+    if (text === undefined) throw new Error('setup: no v3 fixture')
+    const raw = JSON.parse(text) as Record<string, unknown> & {
+      luck: number
+      luckTotal: number
+      luckUpgrades: Record<string, number>
+      charms: string[]
+      trophies: string[]
+      dice: { id: string; level: number; ascensions: number }[]
+    }
+    expect(raw.luck).toBeGreaterThanOrEqual(content.rules.mastery.baseCost + 1)
+    expect(raw['mastery']).toBeUndefined()
+    expect(raw['favour']).toBeUndefined()
+    const parsed = parseSave(text)
+    if (!parsed.ok) throw new Error(`${parsed.reason}: ${parsed.detail}`)
+    const { state } = parsed
+    expect(state.version).toBe(4)
+    expect(state.mastery).toEqual({})
+    expect(state.favour).toBe(0)
+    expect(state.luck).toBe(raw.luck)
+    expect(state.luckTotal).toBe(raw.luckTotal)
+    expect(state.luckUpgrades).toEqual(raw.luckUpgrades)
+    expect(state.charms).toEqual(raw.charms)
+    expect(state.trophies).toEqual(raw.trophies)
+    expect(state.dice.map((die) => [die.id, die.level, die.ascensions])).toEqual(raw.dice.map((die) => [die.id, die.level, die.ascensions]))
+    // Nothing mastered and no favour: the die multipliers and the luck factor are exactly what the v3 save enjoyed.
+    const breakdownBefore = multiplierBreakdown({ ...state, mastery: {}, favour: 0 })
+    const breakdownAfter = multiplierBreakdown(state)
+    expect(N.eq(breakdownAfter.dice, breakdownBefore.dice)).toBe(true)
+    expect(N.eq(breakdownAfter.luck, N.mul(N.add(1, N.mul(content.rules.luck.perPoint, raw.luckTotal)), luckEffects(state).points))).toBe(true)
+    // The migration itself, on the raw object, does not mutate its input.
+    const migrate = migrations[3]
+    if (migrate === undefined) throw new Error('setup: no v3 migration')
+    const migrated = migrate(raw) as { version: number; mastery: unknown; favour: unknown; luck: unknown }
+    expect(migrated.version).toBe(4)
+    expect(migrated.mastery).toEqual({})
+    expect(migrated.favour).toBe(0)
+    expect(migrated.luck).toBe(raw.luck)
+    expect(raw['mastery']).toBeUndefined()
+    expect(raw['version']).toBe(3)
+    // The loaded save can spend its luck on the sinks straight away: one mastery level on die_1, then one favour.
+    const mastered = dispatch(state, { type: 'masterDie', id: 'die_1' })
+    expect(mastered).not.toBe(state)
+    expect(mastered.mastery).toEqual({ die_1: 1 })
+    expect(mastered.luck).toBe(raw.luck - masteryCost(0))
+    expect(mastered.luckTotal).toBe(raw.luckTotal)
+    const favoured = dispatch(mastered, { type: 'buyFavour' })
+    expect(favoured.favour).toBe(1)
+    expect(favoured.luck).toBe(mastered.luck - favourCost(0))
+    expect(N.gt(multiplierBreakdown(favoured).total, breakdownAfter.total)).toBe(true)
+    expect(parseSave(serializeState(favoured)).ok).toBe(true)
   })
 
   it('v1 to v2 clamps a level past the new cap and names the hand of a saved roll', () => {
@@ -218,15 +284,19 @@ describe('fixture generator', () => {
     expect(parseSave(text).ok).toBe(true)
   })
 
-  it('scripts a game that exercises every M3 and M4 system and a partial interval', () => {
+  it('scripts a game that exercises every M3, M4 and M5 system and a partial interval', () => {
     const state = scriptedGame()
     expect(state.rolls).toBeGreaterThanOrEqual(19)
     expect(state.autoRoll.unlocked).toBe(true)
     expect(state.autoRoll.enabled).toBe(true)
     expect(SCRIPTED_LUCK).toBe(luckOnReset({ ...state, totalEarnedRun: N.from(4 * content.rules.luck.threshold) }))
     expect(state.luckTotal).toBe(SCRIPTED_LUCK)
-    expect(state.luck).toBe(SCRIPTED_LUCK - 1 - 3)
+    // Quick Hands 1, Steady Hands 3, one mastery level 2, one favour 1: the seven luck are spent.
+    expect(state.luck).toBe(SCRIPTED_LUCK - 1 - 3 - masteryCost(0) - favourCost(0))
+    expect(state.luck).toBe(0)
     expect(state.luckUpgrades).toEqual({ quick_hands: 1, steady_hands: 1 })
+    expect(state.mastery).toEqual({ die_1: 1 })
+    expect(state.favour).toBe(1)
     expect(state.autoLevel).toBe(true)
     expect(state.autoRoll.intervalMs).toBe(autoRollInterval(state))
     expect(state.autoRoll.intervalMs).toBeLessThan(content.rules.autoRoll.baseIntervalMs)

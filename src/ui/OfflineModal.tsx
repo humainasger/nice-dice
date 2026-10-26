@@ -84,7 +84,7 @@ export function OfflineModal() {
 
         <DialogFooter>
           <Button data-testid="offline-dismiss" onClick={dismissOffline} className="min-h-11 touch-manipulation">
-            Back to the dice
+            Back to the bench
           </Button>
         </DialogFooter>
       </DialogContent>

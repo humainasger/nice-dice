@@ -1,13 +1,16 @@
 // One die slot as a card: owned (the face from the last roll with a ring while it is part of the
-// hand, level and ascension badges, the six-face strip with raised faces in amber, level buttons or
-// Ascend at the cap, the face upgrade once unlocked), buyable (price and a buy button) or locked
-// (what unlocks it). Every number arrives formatted from the selector; the sounds and the gold
-// burst fire next to the commands, the ascension ones on the count so auto-ascend gets them too.
+// hand, level, Refined and Mastery badges, the six-face strip with raised faces in amber, level
+// buttons or Refine at the cap, the face upgrade once unlocked, the luck-priced Master button once
+// luck has been earned), buyable (price and a Carve button) or locked (what unlocks it). Refining
+// is the copy for ascension; the code keeps `ascend`. Every number arrives formatted from the
+// selector; the sounds and the bursts fire next to the commands, the refinement ones on the count
+// so auto-ascend gets them too, the mastery ones on the level so the Luck tab's button gets them.
 import { useEffect, useMemo, useRef } from 'react'
 import { ChevronsUpIcon } from 'lucide-react'
 import { content, type Id } from '@/content'
 import { play } from '@/app/audio'
 import { selectDieSlot, selectHandRank, selectRolls } from '@/app/selectors'
+import { selectLuckShopOpen, selectMasteryRow } from '@/app/selectors.luck'
 import { send, useGameStore, useShallow } from '@/app/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -84,11 +87,14 @@ function FaceStrip({ faces, next, showNext, cap }: FaceStripProps) {
 export function DieCard({ id, index }: { readonly id: Id; readonly index: number }) {
   const selector = useMemo(() => selectDieSlot(id, index), [id, index])
   const v = useGameStore(useShallow(selector))
+  const masterySelector = useMemo(() => selectMasteryRow(id), [id])
+  const m = useGameStore(useShallow(masterySelector))
+  const luckEarned = useGameStore(selectLuckShopOpen)
   const rolls = useGameStore(selectRolls)
   const handRank = useGameStore(selectHandRank)
   const ringing = useRollPulse(rolls, RING_MS)
 
-  // Ascension happens inside the core (the button or auto-ascend); the sound follows the count either way.
+  // Refining happens inside the core (the button or auto-ascend); the sound follows the count either way.
   const seenAscensions = useRef(v.ascensions)
   useEffect(() => {
     if (seenAscensions.current === v.ascensions) return
@@ -115,32 +121,55 @@ export function DieCard({ id, index }: { readonly id: Id; readonly index: number
             }}
             className={cn('min-h-11 w-full max-w-48 touch-manipulation', v.canBuy && 'glow-amber')}
           >
-            Buy for {v.nextCost}
+            Carve for {v.nextCost}
           </Button>
         ) : (
           <p className="text-xs text-muted-foreground">Locked. To unlock, {v.unlockText}.</p>
         )}
+        {m.level > 0 && (
+          <p className="text-[0.7rem] text-muted-foreground tabular">
+            Mastery {m.level} waits for it: x{m.multiplier} output once carved
+          </p>
+        )}
       </Card>
     )
+  }
+
+  const master = (): void => {
+    send({ type: 'masterDie', id })
+    play('luck', { rank: 1 })
   }
 
   const ring = ringing && v.inHand ? (RANK_RING_CLASS[handRank] ?? '') : ''
   return (
     <Card data-testid={`die-card-${id}`} size="sm" className="relative items-center overflow-visible px-3 text-center shadow-soft">
       <Particles trigger={v.ascensions} kind="gold" count={24} />
+      <Particles trigger={m.level} kind="cool" count={16} />
 
-      <div className="flex w-full items-center justify-between gap-2">
+      {/* Both rows wrap: at three columns a card is too narrow for Lv, Refined and Mastery side by side. */}
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <Badge variant="outline" className="tabular">
           Lv {v.level}
           <span className="text-muted-foreground">/{v.cap}</span>
         </Badge>
-        {v.ascensions > 0 ? (
-          <Badge className="tabular" title={`Ascended ${v.ascensions} ${v.ascensions === 1 ? 'time' : 'times'}`}>
-            A{v.ascensions}
-          </Badge>
-        ) : (
-          <span className="text-[0.7rem] text-muted-foreground">not ascended</span>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {v.ascensions > 0 ? (
+            <Badge className="tabular" title={`Refined ${v.ascensions} ${v.ascensions === 1 ? 'time' : 'times'}`}>
+              Refined x{v.ascensions}
+            </Badge>
+          ) : (
+            <span className="text-[0.7rem] text-muted-foreground">not refined yet</span>
+          )}
+          {m.level > 0 && (
+            <Badge
+              variant="outline"
+              className="border-cool/50 text-cool-text tabular"
+              title={`Mastery ${m.level}: this die's output x${m.multiplier} (+${m.bonusPercent}%), kept through every reset`}
+            >
+              Mastery {m.level}
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className={cn('rounded-2xl p-1 transition-shadow duration-150', ring !== '' && `ring-3 ${ring}`)}>
@@ -161,10 +190,11 @@ export function DieCard({ id, index }: { readonly id: Id; readonly index: number
           data-testid={`ascend-${id}`}
           disabled={!v.canAscend}
           onClick={() => send({ type: 'ascend', id })}
+          title={`Refine ${v.name}: back to level 1, every pip worth x${content.rules.ascension.multiplier} more`}
           className="min-h-11 w-full gap-1.5 glow-amber touch-manipulation"
         >
           <ChevronsUpIcon aria-hidden="true" />
-          Ascend
+          Refine
           <span className="font-normal opacity-80 tabular">x{content.rules.ascension.multiplier} output</span>
         </Button>
       ) : (
@@ -227,6 +257,21 @@ export function DieCard({ id, index }: { readonly id: Id; readonly index: number
         </Button>
       ) : (
         <p className="text-[0.7rem] text-muted-foreground">Face editing opens at level {content.rules.face.unlockLevel}</p>
+      )}
+
+      {luckEarned && (
+        <Button
+          variant="outline"
+          data-testid={`mastery-buy-${id}`}
+          disabled={!m.affordable}
+          onClick={master}
+          aria-label={`Master ${v.name} for ${m.nextCost} luck: +${m.stepPercent}% output per level, now +${m.bonusPercent}%`}
+          title={`Mastery ${m.level + 1}: +${m.stepPercent}% output on ${v.name}, paid in luck and kept through every reset`}
+          className={cn('min-h-11 w-full gap-1 touch-manipulation', m.affordable && 'border-cool/50 text-cool-text glow-cool')}
+        >
+          Master (+{m.stepPercent}%)
+          <span className="text-muted-foreground tabular">· {m.nextCost} luck</span>
+        </Button>
       )}
     </Card>
   )

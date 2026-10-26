@@ -1,14 +1,40 @@
-// Balance assertions on the committed content (docs/plans/active/m1-core.md, m3-game.md and
-// m4-luck.md section 3, Sim): the GDD section 12 windows for the active bot on seeds 1 to 3, first
-// luck between 30 and 60 minutes, the second within 60 minutes of the first, lifetime points at 8 h
-// between 1e25 and 1e45 and at 24 h below 1e80 (seed 1 only, to keep the suite fast), no stretch
-// longer than 20 minutes without a purchase in the first 8 h, dead content within 2 h, applyOffline
-// against 8 h stepped at 100 ms, and determinism of the sim itself. A failing window here means
-// tuning src/content within the brief's levers plus a docs/BALANCE_LOG.md entry, not editing the test.
+// Balance assertions on the committed content (docs/plans/active/m1-core.md, m3-game.md,
+// m4-luck.md section 3 and m5-theme.md section 3, Sim): the GDD section 12 windows for the active
+// bot on seeds 1 to 3, first luck between 30 and 60 minutes, the second within 60 minutes of the
+// first, lifetime points at 8 h between 1e25 and 1e45 and at 24 h below 1e80 (seed 1 only, to keep
+// the suite fast), no stretch longer than 20 minutes without a purchase in the first 8 h, dead
+// content within 2 h, applyOffline against 8 h stepped at 100 ms, the bots' luck spending (upgrades,
+// then the M5 sinks), and determinism of the sim itself. A failing window here means tuning
+// src/content within the brief's levers plus a docs/BALANCE_LOG.md entry, not editing the test.
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
-import { advance, applyOffline, dispatch, expectedPointsPerSecond, luckOnReset, N, serializeState, type GameState, type Num } from '@/core'
-import { bestPurchase, bots, buyLuckUpgrades, pickCharms, rankLuckUpgrades, shouldPrestige, PRESTIGE_COOLDOWN_MS } from './bots'
+import {
+  advance,
+  applyOffline,
+  createInitialState,
+  dispatch,
+  expectedPointsPerRoll,
+  expectedPointsPerSecond,
+  favourCost,
+  luckOnReset,
+  N,
+  serializeState,
+  type GameState,
+  type Num,
+} from '@/core'
+import {
+  bestPurchase,
+  bots,
+  buyLuckSinks,
+  buyLuckUpgrades,
+  luckUpgradesMaxed,
+  pickCharms,
+  rankLuckSinks,
+  rankLuckUpgrades,
+  shouldPrestige,
+  spendLuck,
+  PRESTIGE_COOLDOWN_MS,
+} from './bots'
 import { buildReport, diffReports, formatMs, renderMarkdown, type BalanceReport, type ReportArgs } from './report'
 import { HOUR_MS, simulate, TICK_MS, WINDOWS, type SimRun } from './sim'
 
@@ -193,6 +219,8 @@ describe('report', () => {
     expect(short.longestPurchaseGapMs).toBeGreaterThan(0)
     expect(short.end.luckTotal).toBe(0)
     expect(short.end.luckUpgradeLevels).toEqual(content.luckUpgrades.map(() => 0))
+    expect(short.end.masteryLevels).toEqual(content.dice.map(() => 0))
+    expect(short.end.favour).toBe(0)
     for (const die of short.dice) {
       if (die.boughtMs !== null) expect(die.boughtMs).toBeLessThanOrEqual(short.horizonMs)
     }
@@ -206,6 +234,9 @@ describe('report', () => {
     expect(markdown).toContain('| Second luck |')
     expect(markdown).toContain('| Longest purchase gap |')
     expect(markdown).toContain('| Luck upgrade levels at end |')
+    expect(markdown).toContain('| Mastery levels at end |')
+    expect(markdown).toContain('| Favour level at end |')
+    expect(markdown).toContain('Luck sinks: mastery ceil(2 x 1.35^level) luck')
     expect(markdown).toContain(`| die_5 | ${die5.baseCost} | ${die5.costGrowth} | ${die5.baseMultiplier} | die_4 at level 1 |`)
     expect(markdown).toContain('| five_kind | 50 |')
     expect(markdown).toContain('| head_start | 5 | 2 | 1.6 | head_start 10 |')
@@ -318,5 +349,71 @@ describe('bots', () => {
     const atTwoHours = horizonAt(longer, WINDOWS.deadContentMs / HOUR_MS).state
     expect(atTwoHours.prestiges).toBeGreaterThan(0)
     expect(Object.keys(atTwoHours.luckUpgrades).length).toBeGreaterThan(0)
+  })
+
+  it('spends luck on mastery and favour only once every upgrade is maxed, by income lift per luck, judged on the reference run', { timeout: SIM_TIMEOUT_MS }, () => {
+    const start = simulate('active', 1, [0.25]).horizons[0]?.state
+    if (start === undefined) throw new Error('setup: no snapshot')
+    const owned = start.dice.filter((die) => die.owned)
+    expect(owned.length).toBeGreaterThanOrEqual(3)
+    const allMaxed = Object.fromEntries(content.luckUpgrades.map((def) => [def.id, def.maxLevel]))
+    const maxed: GameState = { ...start, luck: 60, luckTotal: 300, luckUpgrades: allMaxed }
+    expect(luckUpgradesMaxed(maxed)).toBe(true)
+    expect(rankLuckUpgrades(maxed)).toEqual([])
+
+    // One candidate per owned die plus favour, best ratio first.
+    const ranked = rankLuckSinks(maxed)
+    expect(ranked).toHaveLength(owned.length + 1)
+    for (let i = 1; i < ranked.length; i++) expect(ranked[i - 1]?.ratio ?? 0).toBeGreaterThanOrEqual(ranked[i]?.ratio ?? 0)
+    const favour = ranked.find((p) => p.command.type === 'buyFavour')
+    expect(favour?.cost).toBe(1)
+    expect(favour?.lift).toBeCloseTo(content.rules.favour.step, 6)
+    // A die's mastery lift is measured with the real formula: the mean roll with one level on that die over the mean roll without.
+    for (const die of owned) {
+      const candidate = ranked.find((p) => p.command.type === 'masterDie' && p.command.id === die.id)
+      const trial: GameState = { ...maxed, mastery: { [die.id]: 1 } }
+      const lift = N.toNumber(N.div(expectedPointsPerRoll(trial), expectedPointsPerRoll(maxed))) - 1
+      expect(lift, die.id).toBeGreaterThan(0)
+      expect(lift, die.id).toBeLessThan(content.rules.mastery.step)
+      expect(candidate?.lift, die.id).toBeCloseTo(lift, 9)
+      expect(candidate?.cost, die.id).toBe(content.rules.mastery.baseCost)
+    }
+    // The die with the largest share of the mean roll ranks first among the mastery candidates.
+    const masteries = ranked.filter((p) => p.command.type === 'masterDie')
+    expect(masteries[0]?.lift ?? 0).toBeGreaterThanOrEqual(masteries.at(-1)?.lift ?? 0)
+
+    // The sinks take the luck once nothing capped is left; nothing affordable stays on the table.
+    const spent = buyLuckSinks(maxed)
+    expect(spent.luckTotal).toBe(300)
+    expect(spent.luck).toBeLessThan(60)
+    expect(Object.values(spent.mastery).reduce<number>((sum, level) => sum + (level ?? 0), 0) + spent.favour).toBeGreaterThan(0)
+    expect(rankLuckSinks(spent).some((p) => p.affordable)).toBe(false)
+    expect(spent.luckUpgrades).toBe(maxed.luckUpgrades)
+
+    // While an upgrade is below its cap the sinks wait; spendLuck finishes the upgrade first.
+    const notMaxed: GameState = { ...maxed, luckUpgrades: { ...allMaxed, memory: 2 } }
+    expect(luckUpgradesMaxed(notMaxed)).toBe(false)
+    expect(buyLuckSinks(notMaxed)).toBe(notMaxed)
+    const both = spendLuck(notMaxed)
+    expect(both.luckUpgrades['memory']).toBe(3)
+    expect(luckUpgradesMaxed(both)).toBe(true)
+    expect(both.luck).toBeLessThan(60 - 20)
+    expect(Object.keys(both.mastery).length + both.favour).toBeGreaterThan(0)
+
+    // Right after a reset only die_1 is owned: judged on itself the bot sees one die; judged on the run just finished it sees them all.
+    const reset: GameState = { ...createInitialState(1), luck: 60, luckTotal: 300, luckUpgrades: allMaxed }
+    expect(rankLuckSinks(reset).filter((p) => p.command.type === 'masterDie')).toHaveLength(1)
+    expect(rankLuckSinks(reset, maxed).filter((p) => p.command.type === 'masterDie')).toHaveLength(owned.length)
+    const judged = buyLuckSinks(reset, maxed)
+    expect(judged.luck).toBeLessThan(60)
+    expect(judged.dice).toBe(reset.dice)
+
+    // The long run: by 8 h every upgrade is maxed and the luck has gone into the sinks.
+    const eight = horizonAt(activeRun(1), WINDOWS.lifetimeAt8h.hours).state
+    expect(luckUpgradesMaxed(eight)).toBe(true)
+    expect(eight.favour).toBeGreaterThan(0)
+    expect(Object.values(eight.mastery).some((level) => (level ?? 0) > 0)).toBe(true)
+    // Nothing affordable is left over: the next favour level (always a candidate) is out of reach.
+    expect(eight.luck).toBeLessThan(favourCost(eight.favour))
   })
 })

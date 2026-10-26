@@ -1,4 +1,4 @@
-// Selectors for the meta screens (charms and the draft, luck, trophies, stats): primitives and
+// Selectors for the meta screens (charms and the draft, luck, trophies shown as marks, stats): primitives and
 // formatted strings, plus a few readonly id arrays that the call site wraps in useShallow. The
 // describe* and *Text helpers are pure, for tests and for building row text from a content def.
 import { content, type CharmDef, type CharmRarity, type ComboId, type Id, type TrophyDef } from '@/content'
@@ -48,9 +48,9 @@ export const selectCharmCount = (s: StoreState): number => s.game.charms.length
 /** Product of the held points charms, formatted ("1.88"). */
 export const selectCharmPointsText = (s: StoreState): string => N.format(charmEffects(s.game).points)
 
-/** The locked Charms tab's headline: after a luck reset the charms are coming back, not opening for the first time. */
+/** The locked Charms tab's headline: after a luck reset the charms are coming back, not opening for the first time. Ascension is "refining" in copy (m5-theme.md). */
 export function charmsLockedHeadline(prestiges: number): string {
-  return prestiges > 0 ? 'Charms return after your first ascension of this run.' : 'Charms open after your first ascension.'
+  return prestiges > 0 ? 'Charms return after your first refinement of this run.' : 'Charms open after your first refinement.'
 }
 export const selectCharmsLockedHeadline = (s: StoreState): string => charmsLockedHeadline(s.game.prestiges)
 
@@ -133,16 +133,16 @@ export const selectTrophyToastDescription = (s: StoreState): string => {
 }
 export const selectTrophyQueueLength = (s: StoreState): number => s.ui.trophyQueue.length
 
-/** Where a player stands on a trophy, as "412 / 1.00K rolls" or "Buy Second Die". */
+/** Where a player stands on a mark (trophy in code), as "412 / 1.00K rolls" or "Carve the Oak Die". */
 export function trophyProgressText(def: TrophyDef, game: GameState): string {
   const c = def.condition
   switch (c.kind) {
     case 'rolls':
       return `${N.format(N.from(game.rolls))} / ${N.format(N.from(c.count))} rolls`
     case 'dieOwned':
-      return `Buy ${dieDef(c.id).name}`
+      return `Carve the ${dieDef(c.id).name}`
     case 'ascensions':
-      return `${totalAscensions(game)} / ${c.count} ${c.count === 1 ? 'ascension' : 'ascensions'}`
+      return `${totalAscensions(game)} / ${c.count} ${c.count === 1 ? 'refinement' : 'refinements'}`
     case 'charms':
       return `${game.charms.length} / ${c.count} ${c.count === 1 ? 'charm' : 'charms'}`
     case 'prestiges':

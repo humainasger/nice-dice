@@ -1,13 +1,13 @@
 // The game screen: a header (title, the luck badge, settings), the banners, then the tab shell.
-// Phones show one section at a time under a bottom tab bar (Table, Combos, Charms, Luck,
-// Trophies); from lg the table sits left (3/5) and the active side panel right (2/5) under a
-// segmented strip. The active tab persists in localStorage. The draft dialog, the trophy toast and
+// Phones show one section at a time under a bottom tab bar (Bench, Hands, Charms, Luck,
+// Marks); from lg the bench sits left (3/5) and the active side panel right (2/5) under a
+// segmented strip. The active tab persists in localStorage. The draft dialog, the mark toast and
 // the settings, recovery and away dialogs live here so every tab sees them. A quiet loading state
 // holds the page until boot() has loaded the save, so the first paint is the real game.
 import { useState } from 'react'
 import { SettingsIcon } from 'lucide-react'
 import { selectBooted, selectDraftOpen, selectHasNewTrophy } from '@/app/selectors'
-import { selectLuckShopReady, selectLuckTotal } from '@/app/selectors.luck'
+import { selectLuckShopReady, selectLuckSinkReady, selectLuckTotal } from '@/app/selectors.luck'
 import { useGameStore } from '@/app/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,7 @@ const TAB_KEY = 'nice-dice:tab'
 const TAB_IDS: readonly TabId[] = ['table', 'combos', 'charms', 'luck', 'trophies']
 const SIDE_TAB_IDS: readonly SideTabId[] = ['combos', 'charms', 'luck', 'trophies']
 
-/** The stored tab, or the table. A missing or unknown value and a blocked localStorage both mean the table. */
+/** The stored tab, or the bench. A missing or unknown value and a blocked localStorage both mean the bench. */
 function readTab(): TabId {
   try {
     if (typeof localStorage === 'undefined') return 'table'
@@ -73,14 +73,18 @@ export function GameScreen() {
   const newTrophy = useGameStore(selectHasNewTrophy)
   const luckTotal = useGameStore(selectLuckTotal)
   const luckShopReady = useGameStore(selectLuckShopReady)
+  const luckSinkReady = useGameStore(selectLuckSinkReady)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [tab, setTab] = useState<TabId>(readTab)
-  /** What the desktop side column shows: the table is always on the left, so it falls back to combos. */
+  /** What the desktop side column shows: the bench is always on the left, so it falls back to hands. */
   const side: SideTabId = tab === 'table' ? 'combos' : tab
-  /** The attention dots: a draft to decide, a trophy to see, luck that can buy an upgrade. */
-  const badges = { charms: draftOpen, trophies: newTrophy, luck: luckShopReady }
+  /** The attention dots: a draft to decide, a mark to see, luck that can buy an upgrade, a mastery level or favour. */
+  const badges = { charms: draftOpen, trophies: newTrophy, luck: luckShopReady || luckSinkReady }
 
   const choose = (next: TabId): void => {
+    // The phone's bottom bar is reachable from any scroll depth, so a new panel starts at its top
+    // instead of wherever the bench was scrolled to (a tap on a card's Master button, say).
+    if (next !== tab) window.scrollTo(0, 0)
     setTab(next)
     writeTab(next)
   }
@@ -132,12 +136,12 @@ export function GameScreen() {
           </div>
         ) : (
           <main aria-busy="true" className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
-            Loading your dice
+            Setting out the dice
           </main>
         )}
 
         <footer className="pt-4 text-center text-xs text-muted-foreground">
-          Icons: lucide (ISC). Font: Geist (OFL). Sound: jsfxr (Unlicense).
+          Icons: lucide (ISC). Fonts: Geist and Fraunces (OFL). Sounds: jsfxr.
         </footer>
       </div>
 

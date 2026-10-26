@@ -1,0 +1,85 @@
+# itch.io build and upload
+
+Status: build and checks in place 2026-10-26 (M5, `docs/plans/active/m5-theme.md` item 6). Not yet uploaded; the project page, licence and AI disclosure are owner decisions marked below.
+
+## Build
+
+`pnpm build:itch` runs `scripts/build-itch.mjs`:
+
+1. A production Vite build through the JS API with the repo's `vite.config.ts`, `base: './'` and `VITE_PLATFORM=itch`, into `dist-itch/` (gitignored). Relative base because itch serves the game from a nested folder on its CDN, where a leading slash would point at the CDN root.
+2. `src/app/swUpdate.ts` returns before `registerSW` when `import.meta.env.VITE_PLATFORM === 'itch'`, so the itch build never installs a service worker. The constant folds at build time and the minifier drops the whole registration path from the bundle.
+3. A check that every `src` and `href` in `dist-itch/index.html` is relative and the bundle sits under `./assets/`. The build fails otherwise.
+4. The system `zip` packs the folder's contents (not the folder) into `dist-itch/nice-dice-itch.zip`, so `index.html` sits at the zip root. Left out: the zip itself, `.DS_Store`, and the generated `sw.js` and `workbox-*.js` (vite-plugin-pwa still emits them; nothing registers them on itch).
+5. Prints the zip size and file count. Today: about 0.4 MB, 17 files (index.html, manifest, favicon, four icons, one JS and one CSS bundle, eight woff2 subsets of Geist and Fraunces). itch's limits are 1000 files, 500 MB unpacked, 200 MB per file and 240 characters per path.
+
+`tests/e2e/itch-build.spec.ts` (part of `pnpm test:e2e`) runs the build, unzips it to a temp folder, serves it from `/html/123456/` on a local static server the way itch's CDN does, and loads it: the title screen renders, Continue leads to the bench, a roll earns points, every request stays inside the nested folder and comes back below 400, the console stays clean, no service worker registers.
+
+## Upload checklist
+
+itch's own guide: https://itch.io/docs/creators/html5
+
+1. Dashboard, "Create new project" (or edit the existing page).
+2. Kind of project: **HTML**.
+3. Uploads: add `dist-itch/nice-dice-itch.zip` and tick **"This file will be played in the browser"**. For an update, upload the new zip and delete the old one; itch processes the archive on the first page load.
+4. Embed options:
+   - **Embed in page**, viewport **1280 x 800**. The layout is responsive, so "Click to launch in fullscreen" works too, but the embedded frame keeps the page's description and screenshots in view.
+   - **Fullscreen button**: on. itch overlays it bottom right of the frame.
+   - **Mobile friendly**: on. On phones itch switches to "Click to launch in fullscreen" on its own, which is the layout the game's phone viewport tests cover.
+   - **Click to play**: leave on (the default). The game's own audio unlock is the title screen's Continue tap inside the frame, so itch's Play button is not what unlocks sound.
+   - **Scrollbars**: off. The game fits its viewport.
+   - No SharedArrayBuffer, no special headers, no portal SDK or embed code: the build is a plain static page.
+5. Visibility: start as **Draft**, open the page, run the smoke list below, then set **Public** (or **Restricted** with a password for a private test first).
+6. Pricing: **No payments** (HTML games take donations only on itch). Classification: Game. Genre: Simulation (itch has no idle genre). Suggested tags: idle, incremental, clicker, dice, singleplayer, relaxing.
+7. Description, cover (630 x 500) and screenshots: the title scene cropped works as the cover once the og:image placeholder lands (brief item 4, "not now"). Tagline from the brief: "a dicewright's idle game".
+8. AI generation disclosure and licence: see the two sections below.
+
+Smoke list on the itch page after upload (two minutes): the title screen renders with the die and lamp, Continue goes to the bench, a roll earns points, Settings opens and Export shows an `ND1:` string, the fullscreen button fills the screen, and the page works on a phone. A missing file on itch answers 403 rather than 404 (itch's security setting), so a broken asset shows as `net::ERR_ABORTED 403` in the console. Paths are case sensitive on itch's CDN.
+
+## AI generation disclosure
+
+The section sits about three quarters down the project edit page. itch's guidance there: disclose if the project contains content produced by generative AI tools such as LLMs, "even if you hand-edited it". The question is Yes or No, then which kinds: Code, Graphics, Sounds, Text (pages then show an "AI Assisted" label with the kinds).
+
+Facts the answers rest on:
+
+- Code: built mostly by Claude Code (CLAUDE.md, PLAN.md).
+- Graphics: the title workbench scene, the favicon and the in-game dice are drawn in code (SVG and CSS) written with AI assistance; no image model and no raster art anywhere. Interface icons are lucide, human made.
+- Sounds: every sound is synthesised at runtime by jsfxr from parameter sets in `src/app/audio.ts`. No audio was generated by an AI model; the parameter sets are code and fall under the Code answer.
+- Text: the in-game copy, names and descriptions were drafted by agents from the owner's briefs and edited by the owner.
+
+Answers to pick from:
+
+| Option | Yes/No | Kinds ticked | When |
+|---|---|---|---|
+| A, recommended | Yes | Code, Graphics, Text | Honest under itch's "even if you hand-edited it" rule; a redundant Yes costs nothing, a wrong No costs trust and can get the page flagged. |
+| B, narrow | Yes | Code, Graphics | Only if the owner rewrites every player-facing line in their own words before upload, so no AI-drafted text ships. |
+| C | Yes | Code, Graphics, Sounds, Text | Only if the owner reads "AI-written synth parameters" as AI sound. Not recommended: nothing in the game is model-generated audio. |
+
+Recommendation: A. Add one line to the page description so nobody has to guess: "Code and SVG art written with AI assistance (Claude Code); sound is procedural (jsfxr); design, numbers and final copy by the author."
+
+## Licence
+
+Owner decision, placeholder until then (README says "Licence: TBD"):
+
+- Project page "Release info" and README line to paste: `Licence: TBD (all rights reserved until a licence is chosen).`
+- Two realistic options: (1) all rights reserved, source visible on GitHub, which is what the absence of a LICENSE file means today; (2) MIT for the code, with the fonts staying under the OFL and lucide under ISC either way. Option 2 fits the public repo; option 1 keeps a later portal deal simple. Pick one before the page goes Public.
+
+## Credits to paste
+
+Plain text for the itch page (matches the credits line in Settings, plus Fraunces, which the title screen added in M5):
+
+```
+Nice Dice, a dicewright's idle game.
+Made with React, Vite, Zustand, Tailwind and shadcn/ui; numbers by break_infinity.js.
+Fonts: Fraunces (OFL) and Geist (OFL). Icons: lucide (ISC). Sound: jsfxr (Unlicense).
+Code and SVG art written with AI assistance (Claude Code). No AI-generated audio.
+```
+
+The in-game credits line (`src/ui/GameScreen.tsx`) still reads "Font: Geist (OFL)" and needs Fraunces added by the copy pass.
+
+## Saves on itch
+
+- itch serves HTML games from its CDN origin `html-classic.itch.zone`, in a nested folder per upload (`/html/<upload id>/`). Browser storage (IndexedDB, localStorage, Web Locks) is per origin, so the itch save is a different save from the GitHub Pages one. **Export and Import in Settings bridge them**: export on one site, import on the other (import asks for an export first).
+- A new upload changes the folder, not the origin, so the itch save survives updates.
+- Every HTML game on itch shares that origin. The game's database (`nice-dice`) and keys (`nice-dice:*`) are namespaced, so another game's storage does not collide with ours.
+- The game runs in an iframe on the itch page. Browsers with strict third-party storage settings (Brave's ephemeral storage, Safari's partitioning, "block third-party cookies" in Chrome) can wipe or partition storage inside iframes. "Click to launch in fullscreen" (automatic on phones) runs the game top level and avoids most of it. The export string is the player's real backup; say so in the page description.
+- No service worker on itch, so no offline play and no update prompt there: a new upload is live on the next page load.

@@ -1,7 +1,8 @@
 // The luck upgrades table: the seven permanent upgrades luck buys (docs/plans/active/m4-luck.md
 // section 2; GDD section 7.1). Cost of the next level = ceil(baseCost x costGrowth ^ level), paid
 // in spendable luck; levels survive every luck reset. Plain values only; core applies the effects
-// in src/core/formulas.ts and src/core/commands.ts.
+// in src/core/formulas.ts and src/core/commands.ts. Names fit the workshop as they are; the
+// descriptions were reworded lightly in M5 (docs/plans/active/m5-theme.md).
 import type { LuckUpgradeDef } from './schema'
 
 const NOTES = 'baseline from docs/plans/active/m4-luck.md section 2, tune via GDD section 7.1'
@@ -10,7 +11,7 @@ export const luckUpgrades: readonly LuckUpgradeDef[] = [
   {
     id: 'head_start',
     name: 'Head Start',
-    description: 'Every run begins with the first die at level 10 per level.',
+    description: 'Every run begins with the Pine Die already at level 10 per level bought.',
     maxLevel: 5,
     baseCost: 2,
     costGrowth: 1.6,
@@ -20,7 +21,7 @@ export const luckUpgrades: readonly LuckUpgradeDef[] = [
   {
     id: 'quick_hands',
     name: 'Quick Hands',
-    description: 'Auto-roll waits 8% less between rolls per level.',
+    description: 'Auto-roll waits 8% less between throws per level.',
     maxLevel: 8,
     baseCost: 1,
     costGrowth: 1.5,
@@ -30,7 +31,7 @@ export const luckUpgrades: readonly LuckUpgradeDef[] = [
   {
     id: 'deep_pockets',
     name: 'Deep Pockets',
-    description: 'Every roll pays x1.2 per level.',
+    description: 'Every throw pays x1.2 per level.',
     maxLevel: 10,
     baseCost: 1,
     costGrowth: 1.4,
@@ -50,7 +51,7 @@ export const luckUpgrades: readonly LuckUpgradeDef[] = [
   {
     id: 'lucky_draw',
     name: 'Lucky Draw',
-    description: 'Every draft offers one more charm per level.',
+    description: 'Every draft lays one more charm on the bench per level.',
     maxLevel: 2,
     baseCost: 4,
     costGrowth: 2,
@@ -70,7 +71,7 @@ export const luckUpgrades: readonly LuckUpgradeDef[] = [
   {
     id: 'steady_hands',
     name: 'Steady Hands',
-    description: 'Auto-level: every second buys the cheapest die level you can afford, and the next die when you can.',
+    description: 'Auto-level: every second buys the cheapest die level you can afford, and carves the next die when you can.',
     maxLevel: 1,
     baseCost: 3,
     costGrowth: 1,

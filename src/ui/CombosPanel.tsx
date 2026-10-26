@@ -1,7 +1,7 @@
-// The Combos tab: the seven hands weakest first, each with its current upgraded multiplier, how
+// The Hands tab (combos in code): the seven hands weakest first, each with its current upgraded multiplier, how
 // often it is the best hand with the dice owned, how many times it has been seen, and an upgrade
-// button with the next cost. The row of the last roll's hand lights up. Locked until the second
-// die, since a hand needs two dice.
+// button with the next cost. The row of the last roll's hand lights up. Locked until the Oak Die
+// is carved, since a hand needs two dice.
 import { useMemo } from 'react'
 import { content, type ComboId } from '@/content'
 import { play } from '@/app/audio'
@@ -67,7 +67,7 @@ export function CombosPanel() {
     >
       <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id="combos-heading" className="text-base font-semibold">
-          Combos
+          Hands
         </h2>
         {unlocked && (
           <span className="text-xs text-muted-foreground tabular" title="Mean best-hand multiplier over every roll of your dice">
@@ -90,7 +90,7 @@ export function CombosPanel() {
         </>
       ) : (
         <p className="rounded-lg bg-muted/60 px-3 py-4 text-center text-sm text-muted-foreground">
-          Combos open when you own a second die. Two dice or more make a hand, and the best hand multiplies the whole roll.
+          Carve the Oak Die to unlock. Two dice or more make a hand, and the best hand multiplies the whole roll.
         </p>
       )}
     </section>

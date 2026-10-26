@@ -1,6 +1,6 @@
 // Selectors: dieView fields for owned, unowned, locked, affordable and capped dice, nextUnlock
-// through the chain, the expected income helpers, and the M3 views (combos, faces, ascension,
-// luck, draft, trophies, the multiplier breakdown).
+// through the chain, the expected income helpers, the M3 views (combos, faces, ascension, luck,
+// draft, trophies, the multiplier breakdown) and the M5 sink views (masteryView, favourView).
 import { describe, expect, it } from 'vitest'
 import { content } from '@/content'
 import { dispatch } from './commands'
@@ -8,12 +8,15 @@ import { comboDef, luckUpgradeDef } from './defs'
 import {
   comboMultiplier,
   comboUpgradeCost,
+  effectiveDieMultiplier,
   expectedComboMultiplier,
   expectedPointsPerRoll,
   faceUpgradeCost,
+  favourCost,
   levelCost,
   levelsBuyable,
   luckOnReset,
+  masteryCost,
 } from './formulas'
 import { N, type Num } from './num'
 import { createInitialState } from './save'
@@ -24,10 +27,12 @@ import {
   dieView,
   draftView,
   expectedPointsPerSecond,
+  favourView,
   heldCharms,
   luckPreview,
   luckSummary,
   luckUpgradeView,
+  masteryView,
   multiplierBreakdown,
   nextUnlock,
   pointsPerRollExpected,
@@ -287,6 +292,62 @@ describe('luckPreview, luckSummary and luckUpgradeView', () => {
   })
 })
 
+describe('masteryView and favourView', () => {
+  it('masteryView shows level, next cost and the factor, works on unowned dice, and agrees with dispatch on affordability', () => {
+    const poor = { ...createInitialState(1), luck: 1, luckTotal: 1 }
+    const view = masteryView(poor, die1.id)
+    expect(view).toMatchObject({ level: 0, nextCost: masteryCost(0), affordable: false })
+    expect(view.nextCost).toBe(2)
+    expect(N.eq(view.multiplier, 1)).toBe(true)
+    expect(dispatch(poor, { type: 'masterDie', id: die1.id })).toBe(poor)
+    const rich = { ...poor, luck: 5, luckTotal: 5 }
+    expect(masteryView(rich, die1.id).affordable).toBe(true)
+    expect(masteryView(rich, die3.id)).toMatchObject({ level: 0, nextCost: 2, affordable: true })
+    const bought = dispatch(rich, { type: 'masterDie', id: die1.id })
+    expect(bought).not.toBe(rich)
+    const after = masteryView(bought, die1.id)
+    expect(after).toMatchObject({ level: 1, nextCost: masteryCost(1), affordable: true })
+    expect(after.nextCost).toBe(3)
+    expect(close(after.multiplier, N.from(1 + rules.mastery.step))).toBe(true)
+    // The die card's multiplier carries the mastery factor.
+    const [first] = bought.dice
+    if (!first) throw new Error('setup')
+    expect(N.eq(dieView(bought, die1.id).multiplier, effectiveDieMultiplier(bought, first))).toBe(true)
+    expect(close(dieView(bought, die1.id).multiplier, N.mul(dieView(rich, die1.id).multiplier, 1 + rules.mastery.step))).toBe(true)
+    expect(masteryView(bought, die2.id)).toMatchObject({ level: 0, nextCost: 2, affordable: true })
+    const twice = dispatch(bought, { type: 'masterDie', id: die1.id })
+    expect(masteryView(twice, die1.id)).toMatchObject({ level: 2, nextCost: 4, affordable: false })
+    expect(dispatch(twice, { type: 'masterDie', id: die1.id })).toBe(twice)
+    // Exactly the cost: affordable and the buy lands on zero.
+    const exact = { ...poor, luck: masteryCost(0), luckTotal: masteryCost(0) }
+    expect(masteryView(exact, die1.id).affordable).toBe(true)
+    expect(dispatch(exact, { type: 'masterDie', id: die1.id }).luck).toBe(0)
+    expect(() => masteryView(poor, 'ghost')).toThrow(/Unknown die id/)
+  })
+
+  it('favourView shows level, next cost and the factor, and agrees with dispatch on affordability', () => {
+    const broke = createInitialState(1)
+    expect(favourView(broke)).toMatchObject({ level: 0, nextCost: 1, affordable: false })
+    expect(N.eq(favourView(broke).multiplier, 1)).toBe(true)
+    expect(dispatch(broke, { type: 'buyFavour' })).toBe(broke)
+    const one = { ...broke, luck: 1, luckTotal: 1 }
+    expect(favourView(one).affordable).toBe(true)
+    const bought = dispatch(one, { type: 'buyFavour' })
+    expect(bought.luck).toBe(0)
+    const after = favourView(bought)
+    expect(after).toMatchObject({ level: 1, nextCost: favourCost(1), affordable: false })
+    expect(after.nextCost).toBe(2)
+    expect(close(after.multiplier, N.from(1 + rules.favour.step))).toBe(true)
+    expect(dispatch(bought, { type: 'buyFavour' })).toBe(bought)
+    const rich = { ...bought, luck: 2, luckTotal: 3 }
+    expect(favourView(rich).affordable).toBe(true)
+    expect(favourView(dispatch(rich, { type: 'buyFavour' }))).toMatchObject({ level: 2, nextCost: 3, affordable: false })
+    // The Luck tab summary multiplier is lifetime luck alone; favour rides in the breakdown's luck factor.
+    expect(close(luckSummary(rich).multiplier, N.from(1 + 3 * rules.luck.perPoint))).toBe(true)
+    expect(close(multiplierBreakdown(rich).luck, N.from((1 + 3 * rules.luck.perPoint) * (1 + rules.favour.step)))).toBe(true)
+  })
+})
+
 describe('draftView and heldCharms', () => {
   it('reports progress, requirement, the offer as defs and the reroll', () => {
     const state = createInitialState(1)
@@ -337,6 +398,16 @@ describe('multiplierBreakdown', () => {
     expect(N.gt(after.combo, view.combo)).toBe(true)
     const afterProduct = N.mul(N.mul(N.mul(N.mul(after.dice, after.combo), after.charms), after.luck), after.trophies)
     expect(N.eq(after.total, afterProduct)).toBe(true)
+    // The M5 sinks ride inside the existing factors: mastery in dice (per die), favour in luck.
+    const sunk: GameState = { ...upgraded, mastery: { [die2.id]: 3 }, favour: 4 }
+    const sunkView = multiplierBreakdown(sunk)
+    expect(close(sunkView.dice, N.from(1 + 6 * 2 * (1 + 3 * rules.mastery.step)))).toBe(true)
+    expect(close(sunkView.luck, N.mul(after.luck, 1 + 4 * rules.favour.step))).toBe(true)
+    expect(N.eq(sunkView.combo, after.combo)).toBe(true)
+    expect(N.eq(sunkView.charms, after.charms)).toBe(true)
+    expect(N.eq(sunkView.trophies, after.trophies)).toBe(true)
+    const sunkProduct = N.mul(N.mul(N.mul(N.mul(sunkView.dice, sunkView.combo), sunkView.charms), sunkView.luck), sunkView.trophies)
+    expect(N.eq(sunkView.total, sunkProduct)).toBe(true)
     const plain = multiplierBreakdown(createInitialState(1))
     expect(N.eq(plain.dice, 1)).toBe(true)
     expect(N.eq(plain.combo, 1)).toBe(true)

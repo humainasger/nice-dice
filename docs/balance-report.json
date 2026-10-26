@@ -184,6 +184,15 @@
         "perDecade": 10,
         "autoLevelEveryMs": 1000
       },
+      "mastery": {
+        "baseCost": 2,
+        "costGrowth": 1.35,
+        "step": 0.1
+      },
+      "favour": {
+        "costGrowth": 1.5,
+        "step": 0.05
+      },
       "trophy": {
         "multiplier": 1.02
       }
@@ -279,7 +288,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -371,7 +388,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -390,36 +415,36 @@
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 80,
-          "ascensions": 12
+          "level": 44,
+          "ascensions": 14
         },
         {
           "id": "die_2",
           "affordableMs": 64000,
           "boughtMs": 64000,
-          "level": 51,
-          "ascensions": 12
+          "level": 79,
+          "ascensions": 13
         },
         {
           "id": "die_3",
           "affordableMs": 264000,
           "boughtMs": 264000,
-          "level": 99,
-          "ascensions": 11
+          "level": 49,
+          "ascensions": 13
         },
         {
           "id": "die_4",
           "affordableMs": 469000,
           "boughtMs": 469000,
-          "level": 69,
-          "ascensions": 11
+          "level": 97,
+          "ascensions": 12
         },
         {
           "id": "die_5",
           "affordableMs": 539000,
           "boughtMs": 539000,
-          "level": 52,
-          "ascensions": 11
+          "level": 80,
+          "ascensions": 12
         }
       ],
       "totalEarned": [
@@ -438,22 +463,22 @@
       ],
       "deadContent": [],
       "end": {
-        "points": "3.24600078870075e34",
-        "totalEarned": "3.95586221537944e37",
-        "rolls": 14825,
-        "incomePerSecond": "1.6496670384667358e34",
-        "luck": 3640,
-        "luckTotal": 3887,
+        "points": "8.9299085506395e37",
+        "totalEarned": "1.50892350470228e41",
+        "rolls": 14824,
+        "incomePerSecond": "1.4104147854604454e38",
+        "luck": 30,
+        "luckTotal": 4317,
         "prestiges": 22,
-        "charms": 13,
+        "charms": 14,
         "comboLevels": [
-          88,
-          88,
-          88,
-          88,
-          88,
-          88,
-          86
+          99,
+          98,
+          98,
+          97,
+          97,
+          97,
+          95
         ],
         "luckUpgradeLevels": [
           5,
@@ -463,7 +488,15 @@
           2,
           3,
           1
-        ]
+        ],
+        "masteryLevels": [
+          18,
+          17,
+          14,
+          13,
+          13
+        ],
+        "favour": 15
       }
     },
     {
@@ -555,7 +588,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -647,7 +688,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -666,36 +715,36 @@
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 63,
-          "ascensions": 12
+          "level": 81,
+          "ascensions": 13
         },
         {
           "id": "die_2",
           "affordableMs": 82000,
           "boughtMs": 82000,
-          "level": 33,
-          "ascensions": 12
+          "level": 64,
+          "ascensions": 13
         },
         {
           "id": "die_3",
           "affordableMs": 187000,
           "boughtMs": 187000,
-          "level": 81,
-          "ascensions": 11
+          "level": 15,
+          "ascensions": 13
         },
         {
           "id": "die_4",
           "affordableMs": 442000,
           "boughtMs": 442000,
-          "level": 51,
-          "ascensions": 11
+          "level": 70,
+          "ascensions": 12
         },
         {
           "id": "die_5",
           "affordableMs": 482000,
           "boughtMs": 482000,
-          "level": 35,
-          "ascensions": 11
+          "level": 53,
+          "ascensions": 12
         }
       ],
       "totalEarned": [
@@ -714,22 +763,22 @@
       ],
       "deadContent": [],
       "end": {
-        "points": "7.7367574629089e33",
-        "totalEarned": "1.41484900373467e37",
-        "rolls": 14489,
-        "incomePerSecond": "9.406142738274346e33",
-        "luck": 3461,
-        "luckTotal": 3708,
+        "points": "1.26577517740477e37",
+        "totalEarned": "2.94659026137269e41",
+        "rolls": 14545,
+        "incomePerSecond": "1.4801920269604998e37",
+        "luck": 26,
+        "luckTotal": 4110,
         "prestiges": 22,
-        "charms": 13,
+        "charms": 14,
         "comboLevels": [
-          88,
-          88,
-          88,
-          88,
-          88,
-          88,
-          88
+          97,
+          97,
+          97,
+          97,
+          97,
+          97,
+          97
         ],
         "luckUpgradeLevels": [
           5,
@@ -739,7 +788,15 @@
           2,
           3,
           1
-        ]
+        ],
+        "masteryLevels": [
+          18,
+          17,
+          14,
+          11,
+          12
+        ],
+        "favour": 15
       }
     },
     {
@@ -831,7 +888,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -923,7 +988,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -942,36 +1015,36 @@
           "id": "die_1",
           "affordableMs": 0,
           "boughtMs": 0,
-          "level": 55,
-          "ascensions": 11
+          "level": 56,
+          "ascensions": 13
         },
         {
           "id": "die_2",
           "affordableMs": 68000,
           "boughtMs": 68000,
-          "level": 63,
-          "ascensions": 10
+          "level": 94,
+          "ascensions": 12
         },
         {
           "id": "die_3",
           "affordableMs": 283000,
           "boughtMs": 283000,
-          "level": 34,
-          "ascensions": 10
+          "level": 64,
+          "ascensions": 12
         },
         {
           "id": "die_4",
           "affordableMs": 523000,
           "boughtMs": 523000,
-          "level": 82,
-          "ascensions": 9
+          "level": 34,
+          "ascensions": 12
         },
         {
           "id": "die_5",
           "affordableMs": 588000,
           "boughtMs": 588000,
-          "level": 65,
-          "ascensions": 9
+          "level": 96,
+          "ascensions": 11
         }
       ],
       "totalEarned": [
@@ -990,22 +1063,22 @@
       ],
       "deadContent": [],
       "end": {
-        "points": "7.15155937226521e33",
-        "totalEarned": "2.09770250177738e37",
-        "rolls": 14549,
-        "incomePerSecond": "4.653096922978713e31",
-        "luck": 3692,
-        "luckTotal": 3939,
+        "points": "2.71660492380912e38",
+        "totalEarned": "2.89562218740857e40",
+        "rolls": 14868,
+        "incomePerSecond": "3.0854151347337053e36",
+        "luck": 59,
+        "luckTotal": 4346,
         "prestiges": 22,
         "charms": 13,
         "comboLevels": [
-          79,
-          78,
-          78,
-          77,
-          77,
-          77,
-          75
+          93,
+          93,
+          93,
+          92,
+          92,
+          92,
+          90
         ],
         "luckUpgradeLevels": [
           5,
@@ -1015,7 +1088,15 @@
           2,
           3,
           1
-        ]
+        ],
+        "masteryLevels": [
+          17,
+          18,
+          14,
+          13,
+          13
+        ],
+        "favour": 15
       }
     },
     {
@@ -1112,7 +1193,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1209,7 +1298,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1306,7 +1403,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1403,7 +1508,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1500,7 +1613,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1597,7 +1718,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1694,7 +1823,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1791,7 +1928,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     },
     {
@@ -1888,7 +2033,15 @@
           0,
           0,
           0
-        ]
+        ],
+        "masteryLevels": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "favour": 0
       }
     }
   ]

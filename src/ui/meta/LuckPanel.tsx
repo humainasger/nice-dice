@@ -1,15 +1,18 @@
 // The Luck tab as the luck shop: spendable and lifetime luck with the multiplier, the reset
 // preview with the log formula (locked: the threshold and a progress bar) and its confirm dialog,
 // then one row per luck upgrade with level pips, the effect line built from the def, the next cost
-// and a Buy button. Before the first luck the rows show greyed with "Earn luck to spend here". A
-// prestige plays the luck sound, shakes the panel and bursts cool particles; a buy plays the luck
-// sound quietly and bursts the row.
+// and a Buy button, and under the seven the two sinks without a cap: Fortune's Favour (one row,
+// +N% on every roll per level) and Mastery (one row per die on the bench, +N% on that die per
+// level; the button does what the die card's Master button does). Before the first luck the rows
+// show greyed with "Earn luck to spend here". A prestige plays the luck sound, shakes the panel and
+// bursts cool particles; a buy plays the luck sound quietly and bursts the row.
 import { useMemo, useState } from 'react'
 import { CloverIcon } from 'lucide-react'
-import { content, type LuckUpgradeId } from '@/content'
+import { content, type Id, type LuckUpgradeId } from '@/content'
 import { play, unlockAudio } from '@/app/audio'
 import {
   selectAutoLevelAvailable,
+  selectFavourRow,
   selectFirstDieName,
   selectHeadStartLevel,
   selectLuckPerDecade,
@@ -18,6 +21,7 @@ import {
   selectLuckSpent,
   selectLuckTotal,
   selectLuckUpgradeRow,
+  selectMasteryRow,
   selectMemoryKept,
 } from '@/app/selectors.luck'
 import {
@@ -119,6 +123,110 @@ function UpgradeRow({ id, shopOpen }: { readonly id: LuckUpgradeId; readonly sho
   )
 }
 
+interface SinkRowProps {
+  readonly testId: string
+  readonly buyTestId: string
+  readonly name: string
+  readonly level: number
+  /** Under the name: what the sink does. */
+  readonly description: string
+  /** The effect line: "+5% points per level, now +15%". */
+  readonly effectText: string
+  readonly owned: boolean
+  readonly nextCost: number
+  readonly affordable: boolean
+  readonly shopOpen: boolean
+  readonly onBuy: () => void
+}
+
+/**
+ * One row of a sink without a cap: name with its level (no pips, the level is open ended), the
+ * description, the effect line, the next cost (it only grows) and Buy. The burst fires on the level.
+ */
+function SinkRow({ testId, buyTestId, name, level, description, effectText, owned, nextCost, affordable, shopOpen, onBuy }: SinkRowProps) {
+  const canBuy = shopOpen && affordable
+  return (
+    <li data-testid={testId} className={cn('relative flex items-start gap-3 py-3', !shopOpen && 'opacity-60')}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="font-medium">{name}</p>
+          <span className="text-xs text-muted-foreground tabular" title={`Level ${level}, no cap`}>
+            {owned ? `Lv ${level}` : 'none yet'}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className={cn('text-sm', owned ? 'font-medium text-cool-text' : 'text-muted-foreground')}>{effectText}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className={cn('text-xs tabular', canBuy ? 'text-cool-text' : 'text-muted-foreground')}>{nextCost} luck</span>
+        <Button
+          data-testid={buyTestId}
+          variant={canBuy ? 'default' : 'outline'}
+          disabled={!canBuy}
+          onClick={onBuy}
+          aria-label={`Buy ${name} level ${level + 1} for ${nextCost} luck`}
+          className={cn('min-h-11 min-w-16 touch-manipulation', canBuy && 'glow-cool')}
+        >
+          Buy
+        </Button>
+      </div>
+      <Particles trigger={level} kind="cool" count={16} />
+    </li>
+  )
+}
+
+/** Fortune's Favour: +N% on every roll per level, no cap, kept through every reset. */
+function FavourRow({ shopOpen }: { readonly shopOpen: boolean }) {
+  const v = useGameStore(useShallow(selectFavourRow))
+  const buy = (): void => {
+    unlockAudio()
+    send({ type: 'buyFavour' })
+    play('luck', { rank: 1 })
+  }
+  return (
+    <SinkRow
+      testId="luck-favour"
+      buyTestId="favour-buy"
+      name="Fortune's Favour"
+      level={v.level}
+      description="Every roll pays a little more. No cap; the price climbs with every level and the favour stays through every reset."
+      effectText={`+${v.stepPercent}% points per level${v.level > 0 ? `, now +${v.bonusPercent}% (x${v.multiplier})` : ''}`}
+      owned={v.level > 0}
+      nextCost={v.nextCost}
+      affordable={v.affordable}
+      shopOpen={shopOpen}
+      onBuy={buy}
+    />
+  )
+}
+
+/** One die's mastery row. Renders nothing while the die is not on the bench; the level waits for it. */
+function MasteryRow({ id, shopOpen }: { readonly id: Id; readonly shopOpen: boolean }) {
+  const selector = useMemo(() => selectMasteryRow(id), [id])
+  const v = useGameStore(useShallow(selector))
+  if (!v.owned) return null
+  const buy = (): void => {
+    unlockAudio()
+    send({ type: 'masterDie', id })
+    play('luck', { rank: 1 })
+  }
+  return (
+    <SinkRow
+      testId={`mastery-${id}`}
+      buyTestId={`mastery-buy-${id}`}
+      name={v.name}
+      level={v.level}
+      description={`+${v.stepPercent}% output on this die per level, on top of its refinements.`}
+      effectText={v.level > 0 ? `x${v.multiplier} output, +${v.bonusPercent}%` : 'Not mastered yet'}
+      owned={v.level > 0}
+      nextCost={v.nextCost}
+      affordable={v.affordable}
+      shopOpen={shopOpen}
+      onBuy={buy}
+    />
+  )
+}
+
 export function LuckPanel() {
   const luck = useGameStore(selectLuckSpendable)
   const luckTotal = useGameStore(selectLuckTotal)
@@ -149,7 +257,7 @@ export function LuckPanel() {
 
   const resets: readonly string[] = [
     'Points',
-    `Dice: back to ${firstDie} at level ${headStart}, faces 1 to 6, no ascensions`,
+    `Dice: back to ${firstDie} at level ${headStart}, faces 1 to 6, unrefined`,
     'Hand upgrades',
     memoryKept > 0 ? `Charms beyond the ${memoryKept} Memory keeps, and draft progress` : 'Charms and draft progress',
     'This run’s earnings',
@@ -157,7 +265,8 @@ export function LuckPanel() {
   const stays: readonly string[] = [
     'Lifetime luck and its multiplier',
     'Luck upgrades and unspent luck',
-    'Trophies',
+    'Mastery on every die, and Fortune’s Favour',
+    'Marks',
     'Lifetime stats',
     autoLevelOwned ? 'Settings, auto-roll and auto-level' : 'Settings and auto-roll',
   ]
@@ -224,7 +333,7 @@ export function LuckPanel() {
             </div>
             <Bar value={percent} tone="cool" label="Progress to luck" />
             <p className="text-sm text-muted-foreground">
-              <span className="tabular">{runEarned}</span> of <span className="tabular">{threshold}</span> this run. Once there, you can reset the table for
+              <span className="tabular">{runEarned}</span> of <span className="tabular">{threshold}</span> this run. Once there, you can clear the bench for
               luck: a permanent points multiplier that survives every reset, and a currency for the upgrades below. Every tenfold past the threshold
               is worth <span className="tabular">{perDecade}</span> more luck.
             </p>
@@ -249,6 +358,24 @@ export function LuckPanel() {
               <UpgradeRow key={def.id} id={def.id} shopOpen={shopOpen} />
             ))}
           </ul>
+
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-4">
+            <PanelTitle>Without end</PanelTitle>
+            <span className="text-xs text-muted-foreground">No cap. Each level costs more than the last.</span>
+          </div>
+          <ul data-testid="luck-favour-list" className="divide-y divide-border/60">
+            <FavourRow shopOpen={shopOpen} />
+          </ul>
+
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-4">
+            <PanelTitle>Mastery</PanelTitle>
+            <span className="text-xs text-muted-foreground">Per die, for the dice on the bench. Kept through every reset.</span>
+          </div>
+          <ul data-testid="mastery-list" className="divide-y divide-border/60">
+            {content.dice.map((def) => (
+              <MasteryRow key={def.id} id={def.id} shopOpen={shopOpen} />
+            ))}
+          </ul>
         </PanelCard>
 
         <PanelCard className="grid gap-4 sm:grid-cols-2">
@@ -263,8 +390,8 @@ export function LuckPanel() {
             <DialogTitle>Reset for +{shown.onReset} luck?</DialogTitle>
             <DialogDescription>
               Points, dice, hand upgrades and charms go{memoryKept > 0 ? ` (Memory keeps the ${memoryKept} rarest)` : ''}. Spendable luck becomes{' '}
-              {shown.luckAfter}, lifetime luck {shown.totalAfter}; trophies, stats and luck upgrades stay, and every roll from now on pays x
-              {shown.afterReset}.
+              {shown.luckAfter}, lifetime luck {shown.totalAfter}; marks, stats, luck upgrades, mastery and Fortune’s Favour stay, and every roll
+              from now on pays x{shown.afterReset}.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

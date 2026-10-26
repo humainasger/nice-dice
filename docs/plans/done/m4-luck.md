@@ -1,6 +1,6 @@
 # M4 luck: spend luck, put the draft aside, browse backups, tame the late game
 
-Status: built 2026-10-26 on branch `m4-luck`, not yet merged or deployed. Same working style as M3: keep `pnpm check` green, no review rounds, tests where they protect saves and formulas.
+Status: merged 2026-10-26 in humainasger/nice-dice#5.
 
 ## Mechanics
 

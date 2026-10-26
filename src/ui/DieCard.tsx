@@ -463,7 +463,7 @@ function UnownedCardCompact({ id, v, m }: UnownedProps) {
             aria-label={`Carve the ${v.name} for ${v.nextCost}`}
             className={cn('min-h-11 shrink-0 gap-1 px-3 touch-manipulation', v.canBuy && 'glow-amber')}
           >
-            Buy
+            Carve
             <span className="font-normal opacity-80 tabular">· {v.nextCost}</span>
           </Button>
         )}

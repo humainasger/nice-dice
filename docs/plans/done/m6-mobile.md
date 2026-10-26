@@ -1,6 +1,6 @@
 # M6 mobile: low cognitive load on a phone, and the roll shows its dice
 
-Status: built 2026-10-26, uncommitted on branch `m6-mobile`; see Build notes at the end. Owner feedback after playing the live build: the UI must be mobile friendly and low cognitive load, and a roll must show the dice combination, not only the hand name and the gain.
+Status: merged 2026-10-26 in humainasger/nice-dice#7.
 
 ## Principles
 

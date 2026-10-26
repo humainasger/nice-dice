@@ -1,6 +1,6 @@
 # M5 theme: a longer luck sink, the dicewright's workshop, title screen, itch.io build
 
-Status: built 2026-10-26, nothing committed, deploy not done (Build notes at the end). Branch `m5-theme`. Same working style: `pnpm check` green, no review rounds, tests where they protect saves and formulas.
+Status: merged 2026-10-26 in humainasger/nice-dice#6.
 
 ## The fantasy (decides every name and the art)
 

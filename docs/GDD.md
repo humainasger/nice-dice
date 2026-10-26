@@ -94,7 +94,7 @@ Shipped rules (M1 and M3, cost multiplier retuned in M4; the owner delegated the
 - Die multiplier = `baseMultiplier` x level x 100 ^ ascensions x the die's cup charms (section 5) x (1 + 0.1 x mastery level) (section 7.1, M5). Output per roll = sum over owned dice of (printed face value x die multiplier), then the global multipliers of section 5. The printed face starts at 1 to 6 and face editing raises it (section 5).
 - A new run after a luck reset starts die_1 at level 1, or at 10 x the Head Start level (section 7.1), the other dice unowned.
 
-TODO owner: final names (the table ships placeholders), whether unlock needs anything beyond owning the previous die, and whether a sixth die or multiplier dice ever enter (section 13 says not in v1).
+Names final as of 2026-10-26 (D18). TODO owner: whether unlock needs anything beyond owning the previous die, and whether a sixth die or multiplier dice ever enter (section 13 says not in v1).
 
 ## 5. Multipliers and stacking rules
 
